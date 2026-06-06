@@ -7,9 +7,6 @@ import Footer from "@/components/Footer";
 export const metadata: Metadata = {
   title: "Encuentro de Talentos",
   description: "Diviértete. Participa. Gana premios.",
-  icons: {
-    icon: "/favicon.ico",
-  },
 };
 
 export default function RootLayout({
