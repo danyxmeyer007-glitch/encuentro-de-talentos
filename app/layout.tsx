@@ -5,8 +5,25 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://encuentro-de-talentos.vercel.app"),
   title: "Encuentro de Talentos",
   description: "Diviértete. Participa. Gana premios.",
+  alternates: {
+    canonical: "/",
+    languages: {
+      "es-MX": "/",
+      es: "/",
+    },
+  },
+  openGraph: {
+    title: "Encuentro de Talentos",
+    description: "Diviértete. Participa. Gana premios.",
+    locale: "es_MX",
+    type: "website",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -15,7 +32,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es-MX" dir="ltr" translate="yes">
+      <head>
+        <meta httpEquiv="Content-Language" content="es-MX" />
+      </head>
       <body>
         <BackgroundVideo />
         <Navbar />

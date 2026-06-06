@@ -61,7 +61,9 @@ export default function Home() {
       <style>{`
         .home-page {
           min-height: 100vh;
-          overflow: hidden;
+          min-height: 100svh;
+          overflow-x: clip;
+          overflow-y: auto;
           background: linear-gradient(rgba(2, 6, 23, 0.22), rgba(2, 6, 23, 0.6));
           color: white;
         }
@@ -69,9 +71,10 @@ export default function Home() {
         .hero-section {
           position: relative;
           min-height: 100vh;
+          min-height: 100svh;
           display: flex;
           align-items: center;
-          padding: 8rem 1.5rem 3rem;
+          padding: 8rem max(1rem, env(safe-area-inset-left)) 3rem;
         }
 
         .hero-section::before {
@@ -105,6 +108,7 @@ export default function Home() {
           box-shadow:
             0 0 24px rgba(250, 204, 21, 0.14),
             inset 0 1px 0 rgba(255, 255, 255, 0.18);
+          overflow-wrap: anywhere;
         }
 
         .hero-eyebrow {
@@ -123,6 +127,7 @@ export default function Home() {
           font-weight: 1000;
           text-transform: uppercase;
           letter-spacing: -0.06em;
+          overflow-wrap: normal;
         }
 
         .hero-title span {
@@ -188,8 +193,9 @@ export default function Home() {
 
         .et-carousel {
           position: relative;
-          width: 520px;
-          height: 520px;
+          width: min(86vw, 520px);
+          height: min(86vw, 520px);
+          flex: 0 0 auto;
           border-radius: 999px;
         }
 
@@ -525,7 +531,21 @@ export default function Home() {
         @media (max-width: 900px) {
           .hero-grid {
             grid-template-columns: 1fr;
+            gap: 2rem;
             text-align: center;
+          }
+
+          .hero-content {
+            padding: 1.5rem;
+            border-radius: 24px;
+          }
+
+          .hero-eyebrow {
+            letter-spacing: 0.18em;
+          }
+
+          .hero-title {
+            font-size: clamp(2.7rem, 15vw, 5.8rem);
           }
 
           .hero-description {
@@ -534,8 +554,8 @@ export default function Home() {
           }
 
           .et-carousel {
-            width: 380px;
-            height: 380px;
+            width: min(88vw, 380px);
+            height: min(88vw, 380px);
           }
 
           .et-logo {
@@ -601,6 +621,133 @@ export default function Home() {
             to {
               transform: translate(-50%, -50%) rotate(648deg) translateX(160px) rotate(-648deg);
             }
+          }
+        }
+
+        @media (max-width: 480px) {
+          .hero-section {
+            align-items: flex-start;
+            padding-top: 7rem;
+          }
+
+          .hero-content {
+            padding: 1.2rem;
+          }
+
+          .hero-description {
+            font-size: 1rem;
+            line-height: 1.65;
+          }
+
+          .hero-button {
+            width: 100%;
+            margin-top: 1.6rem;
+            padding-inline: 1rem;
+          }
+
+          .et-carousel {
+            width: min(90vw, 320px);
+            height: min(90vw, 320px);
+          }
+
+          .et-logo {
+            width: 112px;
+            height: 112px;
+            border-radius: 28px;
+          }
+
+          .et-logo span {
+            font-size: 2.45rem;
+          }
+
+          .et-ring-two {
+            inset: 54px;
+          }
+
+          .orbit-item span {
+            min-width: 86px;
+            padding: 8px 10px;
+            font-size: 0.68rem;
+          }
+
+          .orbit-about span {
+            width: 72px;
+            min-width: 72px;
+            height: 72px;
+          }
+
+          @keyframes orbitOne {
+            from {
+              transform: translate(-50%, -50%) rotate(0deg) translateX(132px) rotate(0deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(360deg) translateX(132px) rotate(-360deg);
+            }
+          }
+
+          @keyframes orbitTwo {
+            from {
+              transform: translate(-50%, -50%) rotate(72deg) translateX(132px) rotate(-72deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(432deg) translateX(132px) rotate(-432deg);
+            }
+          }
+
+          @keyframes orbitThree {
+            from {
+              transform: translate(-50%, -50%) rotate(144deg) translateX(132px) rotate(-144deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(504deg) translateX(132px) rotate(-504deg);
+            }
+          }
+
+          @keyframes orbitFour {
+            from {
+              transform: translate(-50%, -50%) rotate(216deg) translateX(132px) rotate(-216deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(576deg) translateX(132px) rotate(-576deg);
+            }
+          }
+
+          @keyframes orbitFive {
+            from {
+              transform: translate(-50%, -50%) rotate(288deg) translateX(132px) rotate(-288deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(648deg) translateX(132px) rotate(-648deg);
+            }
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .orbit-item,
+          .et-ring-two,
+          .et-logo,
+          .et-glow {
+            animation: none;
+          }
+
+          .orbit-one {
+            transform: translate(-50%, -50%) rotate(0deg) translateX(min(42vw, 220px)) rotate(0deg);
+          }
+
+          .orbit-two {
+            transform: translate(-50%, -50%) rotate(72deg) translateX(min(42vw, 220px)) rotate(-72deg);
+          }
+
+          .orbit-three {
+            transform: translate(-50%, -50%) rotate(144deg) translateX(min(42vw, 220px)) rotate(-144deg);
+          }
+
+          .orbit-four {
+            transform: translate(-50%, -50%) rotate(216deg) translateX(min(42vw, 220px)) rotate(-216deg);
+          }
+
+          .orbit-five {
+            transform: translate(-50%, -50%) rotate(288deg) translateX(min(42vw, 220px)) rotate(-288deg);
           }
         }
       `}</style>
