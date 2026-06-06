@@ -1,42 +1,104 @@
+
+// ==========================================
+// HERO SECTION
+// ==========================================
+
 import Link from "next/link";
 
 export default function Hero() {
   return (
     <section
-      id="home"
-      className="relative flex min-h-screen items-end justify-start overflow-hidden px-6 pb-20 pt-28 md:px-16 md:pb-24"
+      id="hero-section"
+      className="relative flex min-h-screen items-center overflow-hidden px-6 pt-28 text-white"
     >
-      <div className="relative z-10 max-w-md text-left">
-        <div className="mb-4 inline-flex rounded-full border border-cyan-300/30 bg-black/45 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan-100 backdrop-blur-md">
-          🌌 Talento creativo
+      {/* Background Glow */}
+      <div className="hero-background" />
+
+      <div className="mx-auto grid w-full max-w-7xl items-center gap-14 lg:grid-cols-2">
+        {/* ==========================================
+            HERO CONTENT
+        ========================================== */}
+        <div id="hero-content" className="hero-content relative z-10">
+          <p className="mb-5 text-sm font-bold uppercase tracking-[0.35em] text-cyan-300">
+            Diviértete • Participa • Gana premios
+          </p>
+
+          <h1 className="text-5xl font-black uppercase leading-none md:text-7xl lg:text-8xl">
+            <span className="block bg-gradient-to-r from-cyan-300 via-pink-400 to-yellow-300 bg-clip-text text-transparent">
+              Encuentro
+            </span>
+
+            <span className="block text-yellow-400">
+              de
+            </span>
+
+            <span className="block bg-gradient-to-r from-cyan-300 via-pink-400 to-yellow-300 bg-clip-text text-transparent">
+              Talentos
+            </span>
+          </h1>
+
+          <p className="mt-6 max-w-xl text-lg font-medium leading-8 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.16)]">
+            Participa en concursos, desarrolla tus habilidades, recibe mentoría y
+            muestra tu talento al mundo en una experiencia mágica, interactiva y llena
+            de oportunidades.
+          </p>
+
+          <Link href="/participar" className="gold-button mt-10">
+            Participar Ahora
+          </Link>
         </div>
+        {/* ==========================================
+            ORBIT MENU
+        ========================================== */}
+        <div
+          id="hero-orbit-container"
+          className="relative z-10 flex items-center justify-center"
+        >
+          <div className="orbit-carousel">
 
-        <h1 className="mb-4 text-3xl font-black leading-tight text-white drop-shadow-[0_0_18px_rgba(0,0,0,0.9)] md:text-5xl">
-          Tu talento.
-          <br />
-          Tu momento.
-          <br />
-          Tu historia.
-        </h1>
+            <div className="orbit-glow" />
 
-        <p className="mb-7 max-w-sm text-base font-medium text-white/85 drop-shadow-[0_0_10px_rgba(0,0,0,0.9)] md:text-lg">
-          Participa en concursos, recibe apoyo de mentores y gana premios.
-        </p>
+            <div className="orbit-ring orbit-ring-1" />
+            <div className="orbit-ring orbit-ring-2" />
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Link
-            href="/participar"
-            className="rounded-full bg-gradient-to-r from-yellow-300 via-orange-400 to-pink-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_25px_rgba(251,191,36,0.55)] transition hover:scale-105"
-          >
-            🚀 Participar
-          </Link>
+            {/* Orbit Items */}
+            <div className="orbit-item orbit-item-1 orbit-contests">
+              <Link href="/concursos" className="orbit-link">
+                Concursos
+              </Link>
+            </div>
 
-          <Link
-            href="/concursos"
-            className="rounded-full border border-cyan-300/40 bg-black/35 px-6 py-3 text-sm font-black uppercase tracking-widest text-white backdrop-blur-md transition hover:border-yellow-300/70 hover:text-yellow-300"
-          >
-            Ver concursos
-          </Link>
+            <div className="orbit-item orbit-item-2 orbit-categories">
+              <Link href="/categorias" className="orbit-link">
+                Categorías
+              </Link>
+            </div>
+
+            <div className="orbit-item orbit-item-3 orbit-mentors">
+              <Link href="/mentores" className="orbit-link">
+                Mentores
+              </Link>
+            </div>
+
+            <div className="orbit-item orbit-item-4 orbit-participate">
+              <Link href="/participar" className="orbit-link">
+                Participar
+              </Link>
+            </div>
+
+            <div className="orbit-item orbit-item-5 orbit-about">
+              <Link href="/about" className="orbit-link">
+                Acerca
+              </Link>
+            </div>
+
+            {/* Center Logo */}
+            <div id="hero-logo" className="orbit-center">
+              <span className="orbit-logo-mark" aria-label="Encuentro de Talentos">
+                ET
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </section>

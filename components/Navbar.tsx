@@ -3,37 +3,40 @@ import Link from "next/link";
 const navLinks = [
   { href: "/", label: "Inicio" },
   { href: "/concursos", label: "Concursos" },
+  { href: "/categorias", label: "Categorías" },
   { href: "/participar", label: "Participar" },
   { href: "/mentores", label: "Mentores" },
+  { href: "/salon-de-la-fama", label: "Salón de la Fama" },
+  { href: "/about", label: "Acerca" },
 ];
 
 export default function Navbar() {
   return (
-    <header className="fixed left-0 top-0 z-50 w-full border-b border-cyan-300/20 bg-[#020617]/70 backdrop-blur-xl">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <header className="fixed left-0 top-0 z-50 w-full px-4 pt-4">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-[28px] border border-white/15 bg-white/[0.025] px-5 py-3 shadow-[0_0_38px_rgba(34,211,238,0.14),0_0_52px_rgba(250,204,21,0.1),inset_0_1px_0_rgba(255,255,255,0.16)] sm:px-6">
         <Link href="/" className="group flex items-center gap-3">
-          <div className="flex h-12 w-16 items-center justify-center rounded-xl border border-cyan-300/50 bg-gradient-to-br from-cyan-400 via-blue-700 to-orange-400 shadow-[0_0_25px_rgba(34,211,238,0.45)] transition group-hover:scale-105 group-hover:shadow-[0_0_35px_rgba(251,191,36,0.6)]">
-            <span className="text-2xl font-black italic tracking-tighter text-white drop-shadow-[0_0_8px_rgba(251,191,36,0.9)]">
+          <div className="flex h-12 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.015] shadow-[0_0_24px_rgba(34,211,238,0.2),0_0_34px_rgba(250,204,21,0.14),inset_0_1px_0_rgba(255,255,255,0.18)] transition group-hover:scale-105 group-hover:shadow-[0_0_34px_rgba(34,211,238,0.38),0_0_48px_rgba(236,72,153,0.26)]">
+            <span className="bg-gradient-to-br from-white via-cyan-300 to-yellow-300 bg-clip-text pr-1 text-2xl font-black tracking-[-0.12em] text-transparent drop-shadow-[0_0_12px_rgba(34,211,238,0.55)]">
               ET
             </span>
           </div>
 
           <div className="hidden leading-tight sm:block">
-            <p className="text-sm font-black uppercase tracking-[0.2em] text-white">
+            <p className="bg-gradient-to-r from-cyan-300 via-pink-400 to-yellow-300 bg-clip-text text-sm font-black uppercase tracking-[0.2em] text-transparent">
               Encuentro
             </p>
-            <p className="text-sm font-black uppercase tracking-[0.25em] text-yellow-300">
+            <p className="bg-gradient-to-r from-cyan-300 via-pink-400 to-yellow-300 bg-clip-text text-sm font-black uppercase tracking-[0.25em] text-transparent">
               de Talentos
             </p>
           </div>
         </Link>
 
-        <div className="hidden items-center gap-8 text-sm font-semibold uppercase tracking-[0.18em] text-white/80 md:flex">
+        <div className="hidden items-center gap-1 text-xs font-black uppercase tracking-[0.12em] text-cyan-300 md:flex xl:gap-3 xl:tracking-[0.18em]">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="transition hover:text-yellow-300 hover:drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+              className="rounded-full border border-transparent px-2 py-2 transition drop-shadow-[0_0_6px_rgba(34,211,238,0.24)] hover:border-cyan-300/20 hover:bg-cyan-300/[0.035] hover:text-cyan-100 hover:drop-shadow-[0_0_10px_rgba(34,211,238,0.55)] hover:shadow-[0_0_24px_rgba(34,211,238,0.2)] lg:px-3 xl:px-4"
             >
               {link.label}
             </Link>
@@ -42,7 +45,7 @@ export default function Navbar() {
 
         <Link
           href="/participar"
-          className="rounded-full border border-yellow-300/60 bg-gradient-to-r from-yellow-300 via-orange-400 to-pink-500 px-5 py-2 text-sm font-black uppercase tracking-widest text-black shadow-[0_0_25px_rgba(251,191,36,0.5)] transition hover:scale-105"
+          className="rounded-full border border-white/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.32),transparent_46%),linear-gradient(90deg,#22d3ee,#ec4899,#facc15)] px-5 py-2 text-sm font-black uppercase tracking-widest text-white shadow-[0_0_30px_rgba(34,211,238,0.3),0_0_38px_rgba(250,204,21,0.25),inset_0_1px_0_rgba(255,255,255,0.45)] transition hover:scale-105 hover:shadow-[0_0_42px_rgba(34,211,238,0.62),0_0_58px_rgba(236,72,153,0.36),0_14px_34px_rgba(250,204,21,0.22)]"
         >
           Unirme
         </Link>

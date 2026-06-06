@@ -7,7 +7,7 @@ export default function BackgroundVideo() {
         loop
         muted
         playsInline
-        className="w-full h-full object-contain"
+        className="h-full w-full object-cover"
       />
 
       <div className="absolute inset-0 bg-black/40" />
