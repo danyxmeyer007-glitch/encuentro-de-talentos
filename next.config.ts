@@ -1,10 +1,15 @@
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  distDir: ".next-dev",
-  turbopack: {
-    root: process.cwd(),
-  },
+const createNextConfig = (phase: string): NextConfig => {
+  const isDev = phase === PHASE_DEVELOPMENT_SERVER;
+
+  return {
+    ...(isDev ? { distDir: ".next-user" } : {}),
+    turbopack: {
+      root: process.cwd(),
+    },
+  };
 };
 
-export default nextConfig;
+export default createNextConfig;
