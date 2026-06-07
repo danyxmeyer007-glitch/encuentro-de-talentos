@@ -3,9 +3,25 @@
 // HERO SECTION
 // ==========================================
 
+"use client";
+
 import Link from "next/link";
+import { useJoinedNavigation } from "@/lib/useJoinedNavigation";
+
+const orbitToneByHref: Record<string, string> = {
+  "/": "orbit-contests",
+  "/about": "orbit-about",
+  "/categorias": "orbit-categories",
+  "/concursos": "orbit-contests",
+  "/participar": "orbit-participate",
+  "/escenario": "orbit-participate",
+  "/mentores": "orbit-mentors",
+  "/salon-de-la-fama": "orbit-categories",
+};
 
 export default function Hero() {
+  const { links } = useJoinedNavigation();
+
   return (
     <section
       id="hero-section"
@@ -44,7 +60,7 @@ export default function Hero() {
           </p>
 
           <Link href="/participar" className="gold-button mt-10">
-            Participar Ahora
+            Unirme
           </Link>
         </div>
         {/* ==========================================
@@ -61,36 +77,18 @@ export default function Hero() {
             <div className="orbit-ring orbit-ring-1" />
             <div className="orbit-ring orbit-ring-2" />
 
-            {/* Orbit Items */}
-            <div className="orbit-item orbit-item-1 orbit-contests">
-              <Link href="/concursos" className="orbit-link">
-                Concursos
-              </Link>
-            </div>
-
-            <div className="orbit-item orbit-item-2 orbit-categories">
-              <Link href="/categorias" className="orbit-link">
-                Categorías
-              </Link>
-            </div>
-
-            <div className="orbit-item orbit-item-3 orbit-mentors">
-              <Link href="/mentores" className="orbit-link">
-                Mentores
-              </Link>
-            </div>
-
-            <div className="orbit-item orbit-item-4 orbit-participate">
-              <Link href="/participar" className="orbit-link">
-                Participar
-              </Link>
-            </div>
-
-            <div className="orbit-item orbit-item-5 orbit-about">
-              <Link href="/about" className="orbit-link">
-                Acerca
-              </Link>
-            </div>
+            {links.map((link, index) => (
+              <div
+                className={`orbit-item orbit-item-${index + 1} ${
+                  orbitToneByHref[link.href] ?? "orbit-categories"
+                }`}
+                key={link.href}
+              >
+                <Link href={link.href} className="orbit-link">
+                  {link.label}
+                </Link>
+              </div>
+            ))}
 
             {/* Center Logo */}
             <div id="hero-logo" className="orbit-center">

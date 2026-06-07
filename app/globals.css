@@ -920,6 +920,18 @@ a {
   animation: orbit5 25s linear infinite;
 }
 
+.orbit-item-6 {
+  animation: orbit6 25s linear infinite;
+}
+
+.orbit-item-7 {
+  animation: orbit7 25s linear infinite;
+}
+
+.orbit-item-8 {
+  animation: orbit8 25s linear infinite;
+}
+
 /* ======================================================
    ORBIT ANIMATIONS
    ====================================================== */
@@ -1011,6 +1023,60 @@ a {
       rotate(648deg)
       translateX(220px)
       rotate(-648deg);
+  }
+}
+
+@keyframes orbit6 {
+  from {
+    transform:
+      translate(-50%, -50%)
+      rotate(45deg)
+      translateX(168px)
+      rotate(-45deg);
+  }
+
+  to {
+    transform:
+      translate(-50%, -50%)
+      rotate(405deg)
+      translateX(168px)
+      rotate(-405deg);
+  }
+}
+
+@keyframes orbit7 {
+  from {
+    transform:
+      translate(-50%, -50%)
+      rotate(165deg)
+      translateX(168px)
+      rotate(-165deg);
+  }
+
+  to {
+    transform:
+      translate(-50%, -50%)
+      rotate(525deg)
+      translateX(168px)
+      rotate(-525deg);
+  }
+}
+
+@keyframes orbit8 {
+  from {
+    transform:
+      translate(-50%, -50%)
+      rotate(285deg)
+      translateX(168px)
+      rotate(-285deg);
+  }
+
+  to {
+    transform:
+      translate(-50%, -50%)
+      rotate(645deg)
+      translateX(168px)
+      rotate(-645deg);
   }
 }
 

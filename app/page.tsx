@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useJoinedNavigation } from "@/lib/useJoinedNavigation";
 
 export default function Home() {
+  const { links } = useJoinedNavigation();
+
   return (
     <main className="home-page">
       <section className="hero-section">
@@ -20,7 +25,7 @@ export default function Home() {
             </p>
 
             <Link href="/participar" className="hero-button">
-              Participar ahora
+              Unirme
             </Link>
           </div>
 
@@ -34,25 +39,15 @@ export default function Home() {
                 <span>ET</span>
               </div>
 
-              <Link href="/concursos" className="orbit-item orbit-one orbit-contests">
-                <span>Concursos</span>
-              </Link>
-
-              <Link href="/categorias" className="orbit-item orbit-two orbit-categories">
-                <span>Categorías</span>
-              </Link>
-
-              <Link href="/mentores" className="orbit-item orbit-three orbit-mentors">
-                <span>Mentores</span>
-              </Link>
-
-              <Link href="/participar" className="orbit-item orbit-four orbit-participate">
-                <span>Participar</span>
-              </Link>
-
-              <Link href="/about" className="orbit-item orbit-five orbit-about">
-                <span>Acerca</span>
-              </Link>
+              {links.map((link) => (
+                <Link
+                  href={link.href}
+                  className={`orbit-item ${link.orbitClass} ${link.toneClass}`}
+                  key={link.href}
+                >
+                  <span>{link.label}</span>
+                </Link>
+              ))}
             </div>
           </div>
         </div>
@@ -323,6 +318,21 @@ export default function Home() {
           flex: 0 0 auto;
         }
 
+        .orbit-home span {
+          min-width: 116px;
+          border-radius: 999px 26px 999px 999px;
+        }
+
+        .orbit-home span::before {
+          width: 24px;
+          height: 20px;
+          border: 2px solid rgba(255, 255, 255, 0.86);
+          border-top: 0;
+          border-radius: 4px;
+          background: linear-gradient(rgba(255, 255, 255, 0.18), transparent);
+          transform: rotate(45deg);
+        }
+
         .orbit-contests span {
           min-width: 152px;
           border-radius: 999px 999px 999px 26px;
@@ -454,6 +464,18 @@ export default function Home() {
           animation-name: orbitFive;
         }
 
+        .orbit-six {
+          animation-name: orbitSix;
+        }
+
+        .orbit-seven {
+          animation-name: orbitSeven;
+        }
+
+        .orbit-eight {
+          animation-name: orbitEight;
+        }
+
         @keyframes orbitOne {
           from {
             transform: translate(-50%, -50%) rotate(0deg) translateX(220px) rotate(0deg);
@@ -465,37 +487,64 @@ export default function Home() {
 
         @keyframes orbitTwo {
           from {
-            transform: translate(-50%, -50%) rotate(72deg) translateX(220px) rotate(-72deg);
+            transform: translate(-50%, -50%) rotate(90deg) translateX(220px) rotate(-90deg);
           }
           to {
-            transform: translate(-50%, -50%) rotate(432deg) translateX(220px) rotate(-432deg);
+            transform: translate(-50%, -50%) rotate(450deg) translateX(220px) rotate(-450deg);
           }
         }
 
         @keyframes orbitThree {
           from {
-            transform: translate(-50%, -50%) rotate(144deg) translateX(220px) rotate(-144deg);
+            transform: translate(-50%, -50%) rotate(180deg) translateX(220px) rotate(-180deg);
           }
           to {
-            transform: translate(-50%, -50%) rotate(504deg) translateX(220px) rotate(-504deg);
+            transform: translate(-50%, -50%) rotate(540deg) translateX(220px) rotate(-540deg);
           }
         }
 
         @keyframes orbitFour {
           from {
-            transform: translate(-50%, -50%) rotate(216deg) translateX(220px) rotate(-216deg);
+            transform: translate(-50%, -50%) rotate(270deg) translateX(220px) rotate(-270deg);
           }
           to {
-            transform: translate(-50%, -50%) rotate(576deg) translateX(220px) rotate(-576deg);
+            transform: translate(-50%, -50%) rotate(630deg) translateX(220px) rotate(-630deg);
           }
         }
 
         @keyframes orbitFive {
           from {
-            transform: translate(-50%, -50%) rotate(288deg) translateX(220px) rotate(-288deg);
+            transform: translate(-50%, -50%) rotate(45deg) translateX(168px) rotate(-45deg);
           }
           to {
-            transform: translate(-50%, -50%) rotate(648deg) translateX(220px) rotate(-648deg);
+            transform: translate(-50%, -50%) rotate(405deg) translateX(168px) rotate(-405deg);
+          }
+        }
+
+        @keyframes orbitSix {
+          from {
+            transform: translate(-50%, -50%) rotate(135deg) translateX(168px) rotate(-135deg);
+          }
+          to {
+            transform: translate(-50%, -50%) rotate(495deg) translateX(168px) rotate(-495deg);
+          }
+        }
+
+        @keyframes orbitSeven {
+          from {
+            transform: translate(-50%, -50%) rotate(225deg) translateX(168px) rotate(-225deg);
+          }
+          to {
+            transform: translate(-50%, -50%) rotate(585deg) translateX(168px) rotate(-585deg);
+          }
+        }
+
+        @keyframes orbitEight {
+          from {
+            transform: translate(-50%, -50%) rotate(315deg) translateX(168px) rotate(-315deg);
+          }
+          to {
+            transform: translate(-50%, -50%) rotate(675deg) translateX(168px) rotate(-675deg);
           }
         }
 
@@ -589,37 +638,64 @@ export default function Home() {
 
           @keyframes orbitTwo {
             from {
-              transform: translate(-50%, -50%) rotate(72deg) translateX(160px) rotate(-72deg);
+              transform: translate(-50%, -50%) rotate(90deg) translateX(160px) rotate(-90deg);
             }
             to {
-              transform: translate(-50%, -50%) rotate(432deg) translateX(160px) rotate(-432deg);
+              transform: translate(-50%, -50%) rotate(450deg) translateX(160px) rotate(-450deg);
             }
           }
 
           @keyframes orbitThree {
             from {
-              transform: translate(-50%, -50%) rotate(144deg) translateX(160px) rotate(-144deg);
+              transform: translate(-50%, -50%) rotate(180deg) translateX(160px) rotate(-180deg);
             }
             to {
-              transform: translate(-50%, -50%) rotate(504deg) translateX(160px) rotate(-504deg);
+              transform: translate(-50%, -50%) rotate(540deg) translateX(160px) rotate(-540deg);
             }
           }
 
           @keyframes orbitFour {
             from {
-              transform: translate(-50%, -50%) rotate(216deg) translateX(160px) rotate(-216deg);
+              transform: translate(-50%, -50%) rotate(270deg) translateX(160px) rotate(-270deg);
             }
             to {
-              transform: translate(-50%, -50%) rotate(576deg) translateX(160px) rotate(-576deg);
+              transform: translate(-50%, -50%) rotate(630deg) translateX(160px) rotate(-630deg);
             }
           }
 
           @keyframes orbitFive {
             from {
-              transform: translate(-50%, -50%) rotate(288deg) translateX(160px) rotate(-288deg);
+              transform: translate(-50%, -50%) rotate(45deg) translateX(122px) rotate(-45deg);
             }
             to {
-              transform: translate(-50%, -50%) rotate(648deg) translateX(160px) rotate(-648deg);
+              transform: translate(-50%, -50%) rotate(405deg) translateX(122px) rotate(-405deg);
+            }
+          }
+
+          @keyframes orbitSix {
+            from {
+              transform: translate(-50%, -50%) rotate(135deg) translateX(122px) rotate(-135deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(495deg) translateX(122px) rotate(-495deg);
+            }
+          }
+
+          @keyframes orbitSeven {
+            from {
+              transform: translate(-50%, -50%) rotate(225deg) translateX(122px) rotate(-225deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(585deg) translateX(122px) rotate(-585deg);
+            }
+          }
+
+          @keyframes orbitEight {
+            from {
+              transform: translate(-50%, -50%) rotate(315deg) translateX(122px) rotate(-315deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(675deg) translateX(122px) rotate(-675deg);
             }
           }
         }
@@ -687,37 +763,64 @@ export default function Home() {
 
           @keyframes orbitTwo {
             from {
-              transform: translate(-50%, -50%) rotate(72deg) translateX(132px) rotate(-72deg);
+              transform: translate(-50%, -50%) rotate(90deg) translateX(132px) rotate(-90deg);
             }
             to {
-              transform: translate(-50%, -50%) rotate(432deg) translateX(132px) rotate(-432deg);
+              transform: translate(-50%, -50%) rotate(450deg) translateX(132px) rotate(-450deg);
             }
           }
 
           @keyframes orbitThree {
             from {
-              transform: translate(-50%, -50%) rotate(144deg) translateX(132px) rotate(-144deg);
+              transform: translate(-50%, -50%) rotate(180deg) translateX(132px) rotate(-180deg);
             }
             to {
-              transform: translate(-50%, -50%) rotate(504deg) translateX(132px) rotate(-504deg);
+              transform: translate(-50%, -50%) rotate(540deg) translateX(132px) rotate(-540deg);
             }
           }
 
           @keyframes orbitFour {
             from {
-              transform: translate(-50%, -50%) rotate(216deg) translateX(132px) rotate(-216deg);
+              transform: translate(-50%, -50%) rotate(270deg) translateX(132px) rotate(-270deg);
             }
             to {
-              transform: translate(-50%, -50%) rotate(576deg) translateX(132px) rotate(-576deg);
+              transform: translate(-50%, -50%) rotate(630deg) translateX(132px) rotate(-630deg);
             }
           }
 
           @keyframes orbitFive {
             from {
-              transform: translate(-50%, -50%) rotate(288deg) translateX(132px) rotate(-288deg);
+              transform: translate(-50%, -50%) rotate(45deg) translateX(102px) rotate(-45deg);
             }
             to {
-              transform: translate(-50%, -50%) rotate(648deg) translateX(132px) rotate(-648deg);
+              transform: translate(-50%, -50%) rotate(405deg) translateX(102px) rotate(-405deg);
+            }
+          }
+
+          @keyframes orbitSix {
+            from {
+              transform: translate(-50%, -50%) rotate(135deg) translateX(102px) rotate(-135deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(495deg) translateX(102px) rotate(-495deg);
+            }
+          }
+
+          @keyframes orbitSeven {
+            from {
+              transform: translate(-50%, -50%) rotate(225deg) translateX(102px) rotate(-225deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(585deg) translateX(102px) rotate(-585deg);
+            }
+          }
+
+          @keyframes orbitEight {
+            from {
+              transform: translate(-50%, -50%) rotate(315deg) translateX(102px) rotate(-315deg);
+            }
+            to {
+              transform: translate(-50%, -50%) rotate(675deg) translateX(102px) rotate(-675deg);
             }
           }
         }
@@ -735,19 +838,31 @@ export default function Home() {
           }
 
           .orbit-two {
-            transform: translate(-50%, -50%) rotate(72deg) translateX(min(42vw, 220px)) rotate(-72deg);
+            transform: translate(-50%, -50%) rotate(90deg) translateX(min(42vw, 220px)) rotate(-90deg);
           }
 
           .orbit-three {
-            transform: translate(-50%, -50%) rotate(144deg) translateX(min(42vw, 220px)) rotate(-144deg);
+            transform: translate(-50%, -50%) rotate(180deg) translateX(min(42vw, 220px)) rotate(-180deg);
           }
 
           .orbit-four {
-            transform: translate(-50%, -50%) rotate(216deg) translateX(min(42vw, 220px)) rotate(-216deg);
+            transform: translate(-50%, -50%) rotate(270deg) translateX(min(42vw, 220px)) rotate(-270deg);
           }
 
           .orbit-five {
-            transform: translate(-50%, -50%) rotate(288deg) translateX(min(42vw, 220px)) rotate(-288deg);
+            transform: translate(-50%, -50%) rotate(45deg) translateX(min(32vw, 168px)) rotate(-45deg);
+          }
+
+          .orbit-six {
+            transform: translate(-50%, -50%) rotate(135deg) translateX(min(32vw, 168px)) rotate(-135deg);
+          }
+
+          .orbit-seven {
+            transform: translate(-50%, -50%) rotate(225deg) translateX(min(32vw, 168px)) rotate(-225deg);
+          }
+
+          .orbit-eight {
+            transform: translate(-50%, -50%) rotate(315deg) translateX(min(32vw, 168px)) rotate(-315deg);
           }
         }
       `}</style>

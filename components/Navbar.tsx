@@ -1,16 +1,11 @@
-import Link from "next/link";
+"use client";
 
-const navLinks = [
-  { href: "/", label: "Inicio" },
-  { href: "/concursos", label: "Concursos" },
-  { href: "/categorias", label: "Categorías" },
-  { href: "/participar", label: "Participar" },
-  { href: "/mentores", label: "Mentores" },
-  { href: "/salon-de-la-fama", label: "Salón de la Fama" },
-  { href: "/about", label: "Acerca" },
-];
+import Link from "next/link";
+import { useJoinedNavigation } from "@/lib/useJoinedNavigation";
 
 export default function Navbar() {
+  const { links } = useJoinedNavigation();
+
   return (
     <header className="fixed left-0 top-0 z-50 w-full px-4 pt-4">
       <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-[28px] border border-white/15 bg-white/[0.025] px-5 py-3 shadow-[0_0_38px_rgba(34,211,238,0.14),0_0_52px_rgba(250,204,21,0.1),inset_0_1px_0_rgba(255,255,255,0.16)] sm:px-6">
@@ -32,7 +27,7 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-1 text-xs font-black uppercase tracking-[0.12em] text-cyan-300 md:flex xl:gap-3 xl:tracking-[0.18em]">
-          {navLinks.map((link) => (
+          {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
