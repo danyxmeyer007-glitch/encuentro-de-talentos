@@ -273,6 +273,28 @@ function getAgeRange(dateOfBirth: string) {
   return "35+";
 }
 
+function getPublicSiteUrl() {
+  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+
+  if (configuredUrl) {
+    try {
+      const url = new URL(configuredUrl);
+
+      if (url.protocol === "https:" || url.protocol === "http:") {
+        return url.origin;
+      }
+    } catch {
+      // Fall back to the current origin when the env value is not a valid URL.
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  return "";
+}
+
 export default function SignupSection({
   mode = "registro",
 }: {
@@ -602,10 +624,10 @@ export default function SignupSection({
         throw new Error("Falta configurar Supabase para registrar usuarios.");
       }
 
-      const emailRedirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/registro?verified=1`
-          : undefined;
+      const siteUrl = getPublicSiteUrl();
+      const emailRedirectTo = siteUrl
+        ? `${siteUrl}/registro?verified=1`
+        : undefined;
       const auth =
         authModeForRequest === "signup"
           ? await supabase.auth.signUp({
