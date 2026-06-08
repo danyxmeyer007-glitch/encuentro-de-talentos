@@ -17,6 +17,7 @@ type TokenRequest = {
 };
 
 const roomName = process.env.LIVEKIT_ROOM_NAME ?? "voces-debut-julio-15";
+const contestSlug = "voz-piloto-2026";
 
 async function createLiveKitToken(role: LiveKitRole, identity: string) {
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -75,6 +76,48 @@ async function isLiveRoomOpenForAudience() {
   return Boolean(data);
 }
 
+async function getAuthenticatedUserId(request: Request) {
+  if (!hasSupabaseServerConfig()) {
+    return null;
+  }
+
+  const authHeader = request.headers.get("authorization");
+  const token = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1];
+
+  if (!token) {
+    return null;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.auth.getUser(token);
+
+  if (error) {
+    return null;
+  }
+
+  return data.user?.id ?? null;
+}
+
+async function isRegisteredContestPerformer(userId: string | null) {
+  if (!userId || !hasSupabaseServerConfig()) {
+    return false;
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("contest_registrations")
+    .select("id")
+    .eq("contest_slug", contestSlug)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return Boolean(data);
+}
+
 export async function POST(request: Request) {
   let body: TokenRequest;
 
@@ -90,20 +133,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
-  if (role === "performer" && body.code !== process.env.LIVEKIT_PERFORMER_CODE) {
-    return NextResponse.json({ error: "Invalid performer code" }, { status: 403 });
-  }
-
   if (role === "host" && body.code !== process.env.LIVEKIT_HOST_CODE) {
     return NextResponse.json({ error: "Invalid host code" }, { status: 403 });
   }
 
-  if (role === "audience") {
+  if (role !== "host") {
     const liveRoomOpen = await isLiveRoomOpenForAudience();
 
     if (!liveRoomOpen) {
       return NextResponse.json(
         { error: "El escenario no esta live todavia" },
+        { status: 403 },
+      );
+    }
+  }
+
+  if (role === "performer") {
+    const userId = await getAuthenticatedUserId(request);
+    const isRegisteredPerformer = await isRegisteredContestPerformer(userId);
+    const hasPerformerCode = Boolean(
+      process.env.LIVEKIT_PERFORMER_CODE &&
+        body.code === process.env.LIVEKIT_PERFORMER_CODE,
+    );
+
+    if (!isRegisteredPerformer && !hasPerformerCode) {
+      return NextResponse.json(
+        { error: "Solo participantes registrados en canto pueden publicar" },
         { status: 403 },
       );
     }

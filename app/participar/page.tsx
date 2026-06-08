@@ -1,11 +1,5 @@
-import HowItWorks from "@/components/HowItWorks";
-import SignupSection from "@/components/SignupSection";
+import { redirect } from "next/navigation";
 
 export default function ParticiparPage() {
-  return (
-    <main className="page-shell">
-      <SignupSection />
-      <HowItWorks />
-    </main>
-  );
+  redirect("/registro");
 }

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 function isValidSupabaseUrl(value: string | undefined) {
   if (!value) {
@@ -14,21 +14,14 @@ function isValidSupabaseUrl(value: string | undefined) {
   }
 }
 
-export function hasSupabaseBrowserConfig() {
-  return Boolean(
-    isValidSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-  );
-}
-
-export function createSupabaseBrowserClient() {
+export function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabasePublishableKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!isValidSupabaseUrl(supabaseUrl) || !supabasePublishableKey) {
-    throw new Error("Missing Supabase browser configuration");
+    throw new Error("Missing Supabase browser environment variables");
   }
 
-  return createClient(supabaseUrl!, supabasePublishableKey);
+  return createBrowserClient(supabaseUrl!, supabasePublishableKey);
 }

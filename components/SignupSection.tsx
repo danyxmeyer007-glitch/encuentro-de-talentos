@@ -10,7 +10,10 @@ import {
 } from "react";
 import { Session } from "@supabase/supabase-js";
 import CamerinoProfile from "@/components/camerino/CamerinoProfile";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  createSupabaseBrowserClient,
+  hasSupabaseBrowserConfig,
+} from "@/lib/supabase/client";
 
 type Role = "audience" | "performer";
 type AuthMode = "signup" | "signin";
@@ -165,6 +168,7 @@ const birthDays = Array.from({ length: 31 }, (_item, index) =>
   String(index + 1).padStart(2, "0"),
 );
 const pendingProfileStorageKey = "encuentro_pending_profile";
+const maxProfilePhotoSize = 2 * 1024 * 1024;
 
 function normalizeUsername(value: string) {
   return value
@@ -269,8 +273,15 @@ function getAgeRange(dateOfBirth: string) {
   return "35+";
 }
 
-export default function SignupSection() {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+export default function SignupSection({
+  mode = "registro",
+}: {
+  mode?: "registro" | "camerino";
+}) {
+  const supabase = useMemo(
+    () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
+    [],
+  );
   const [session, setSession] = useState<Session | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>("signup");
   const [role, setRole] = useState<Role>("audience");
@@ -291,8 +302,16 @@ export default function SignupSection() {
   const [status, setStatus] = useState("");
   const [verificationNotice, setVerificationNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const isCamerinoPage = mode === "camerino";
 
   const userId = session?.user.id ?? "";
+  const missingSupabaseConfig = !supabase;
+  const displayedStatus =
+    status ||
+    (missingSupabaseConfig
+      ? "Faltan las variables NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY."
+      : "");
   const myProfile = directory.find((profile) => profile.user_id === userId);
   const friends = directory.filter((profile) => profile.friend_status === "friends");
   const activeFriendId = selectedFriendId || friends[0]?.user_id || "";
@@ -305,6 +324,11 @@ export default function SignupSection() {
   );
 
   const loadCamerino = useCallback(async (currentUserId: string) => {
+    if (!supabase) {
+      setStatus("Falta configurar Supabase para cargar el camerino.");
+      return;
+    }
+
     const [
       profilesResponse,
       performersResponse,
@@ -428,6 +452,10 @@ export default function SignupSection() {
   }, [supabase]);
 
   useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
     const handleEmailCallback = async () => {
       if (typeof window === "undefined") return;
 
@@ -522,10 +550,24 @@ export default function SignupSection() {
   }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    setPhotoFile(event.target.files?.[0] ?? null);
+    const nextFile = event.target.files?.[0] ?? null;
+
+    if (nextFile && nextFile.size > maxProfilePhotoSize) {
+      setStatus("La foto debe pesar 2 MB o menos por ahora.");
+      event.target.value = "";
+      setPhotoFile(null);
+      return;
+    }
+
+    setStatus("");
+    setPhotoFile(nextFile);
   }
 
   async function uploadProfilePhoto(currentUserId: string) {
+    if (!supabase) {
+      throw new Error("Falta configurar Supabase para subir fotos.");
+    }
+
     if (!photoFile) {
       return form.photo_url.trim();
     }
@@ -554,12 +596,18 @@ export default function SignupSection() {
     setIsSaving(true);
 
     try {
+      const authModeForRequest = isCamerinoPage ? "signin" : authMode;
+
+      if (!supabase) {
+        throw new Error("Falta configurar Supabase para registrar usuarios.");
+      }
+
       const emailRedirectTo =
         typeof window !== "undefined"
-          ? `${window.location.origin}/participar?verified=1`
+          ? `${window.location.origin}/registro?verified=1`
           : undefined;
       const auth =
-        authMode === "signup"
+        authModeForRequest === "signup"
           ? await supabase.auth.signUp({
               email,
               password,
@@ -577,7 +625,7 @@ export default function SignupSection() {
       const nextSession = auth.data.session;
 
       if (!nextSession) {
-        if (authMode === "signup" && typeof window !== "undefined") {
+        if (authModeForRequest === "signup" && typeof window !== "undefined") {
           window.localStorage.setItem(
             pendingProfileStorageKey,
             JSON.stringify({ email, form }),
@@ -597,8 +645,18 @@ export default function SignupSection() {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(pendingProfileStorageKey);
       }
+
+      if (authModeForRequest === "signin") {
+        setStatus("Entrando a tu camerino.");
+        window.location.assign("/camerino");
+        return;
+      }
+
       await saveProfile(nextSession.user.id, nextSession.user.email ?? email, "audience");
       setStatus("Listo. Tu perfil ya esta en el camerino.");
+      if (typeof window !== "undefined") {
+        window.location.assign("/camerino");
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo registrar.");
     } finally {
@@ -611,6 +669,11 @@ export default function SignupSection() {
     currentEmail = email,
     profileRole = role,
   ) {
+    if (!supabase) {
+      setStatus("Falta configurar Supabase para guardar el perfil.");
+      return;
+    }
+
     if (!currentUserId) {
       setStatus("Inicia sesion para guardar tu perfil.");
       return;
@@ -707,7 +770,24 @@ export default function SignupSection() {
     }
   }
 
+  async function handleCamerinoSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("");
+    setIsSaving(true);
+
+    try {
+      const nextRole = form.stage_name.trim() ? "performer" : role;
+      await saveProfile(userId, email, nextRole);
+      setStatus("Camerino actualizado.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo guardar.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function toggleFollow(profile: DirectoryProfile) {
+    if (!supabase) return;
     if (!userId || profile.user_id === userId) return;
 
     const request = profile.is_following
@@ -731,6 +811,7 @@ export default function SignupSection() {
   }
 
   async function requestFriend(profile: DirectoryProfile) {
+    if (!supabase) return;
     if (!userId || profile.user_id === userId) return;
 
     const existingRequest = requests.find(
@@ -768,6 +849,7 @@ export default function SignupSection() {
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!supabase) return;
 
     const receiverId = selectedFriendId || friends[0]?.user_id || "";
 
@@ -790,6 +872,7 @@ export default function SignupSection() {
 
   async function addSample(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!supabase) return;
 
     if (!userId || !sampleTitle.trim() || !sampleUrl.trim()) {
       setStatus("Agrega titulo y URL para publicar una muestra.");
@@ -815,6 +898,7 @@ export default function SignupSection() {
   }
 
   async function deleteSample(sampleId: string) {
+    if (!supabase) return;
     if (!userId) return;
 
     const { error } = await supabase
@@ -832,6 +916,7 @@ export default function SignupSection() {
   }
 
   async function signOut() {
+    if (!supabase) return;
     await supabase.auth.signOut();
     setSession(null);
     setForm(emptyForm);
@@ -839,65 +924,89 @@ export default function SignupSection() {
     setSamples([]);
     setRole("audience");
     setVerificationNotice("");
+    setIsEditingProfile(false);
     setStatus("Sesion cerrada.");
   }
 
   return (
-    <section id="registro" className="relative px-4 py-16 text-white md:py-24">
+    <section
+      id={isCamerinoPage ? "camerino" : "registro"}
+      className={`relative px-4 text-white ${
+        isCamerinoPage ? "py-8 md:py-10" : "py-16 md:py-24"
+      }`}
+    >
       <div className="pointer-events-none absolute inset-x-8 top-10 h-56 rounded-full bg-[radial-gradient(circle_at_28%_45%,rgba(34,211,238,0.1),transparent_48%),radial-gradient(circle_at_70%_45%,rgba(236,72,153,0.08),transparent_52%),radial-gradient(circle_at_50%_70%,rgba(250,204,21,0.1),transparent_62%)] blur-[22px]" />
 
-      <div className="relative mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.85fr_1.15fr]">
-        <div>
-          <p className="mb-4 text-sm font-black uppercase tracking-[0.35em] text-cyan-300">
-            Participa 2026
-          </p>
-          <h1 className="bg-gradient-to-r from-cyan-300 via-pink-400 to-yellow-300 bg-clip-text text-4xl font-black uppercase leading-none text-transparent md:text-6xl">
-            Crea tu perfil y entra a tu camerino
-          </h1>
-          <p className="mt-5 text-lg font-medium leading-8 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.18)]">
-            El registro es para todos: audiencia, fans y futuros artistas. Una
-            vez dentro, desde Mi Perfil puedes activar tu alta de artista para
-            participar en canciones, debuts y el escenario live.
-          </p>
-
-          <div className="mt-8 grid gap-3 rounded-[24px] border border-white/[0.16] bg-white/[0.035] p-5 shadow-[0_0_18px_rgba(250,204,21,0.11),inset_0_1px_0_rgba(255,255,255,0.18)]">
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-cyan-300">
-              Camerino personal
+      <div
+        className={`relative mx-auto grid max-w-7xl gap-8 ${
+          isCamerinoPage && session
+            ? "grid-cols-1"
+            : "lg:grid-cols-[0.85fr_1.15fr]"
+        }`}
+      >
+        {(!isCamerinoPage || !session) ? (
+          <div>
+            <p className="mb-4 text-sm font-black uppercase tracking-[0.35em] text-cyan-300">
+              {isCamerinoPage ? "Mi Perfil" : "Participa 2026"}
             </p>
-            <p className="text-sm leading-6 text-white/72">
-              Perfil publico, seguidores, amigos y mensajes privados entre
-              artistas aceptados como amigos.
+            <h1 className="bg-gradient-to-r from-cyan-300 via-pink-400 to-yellow-300 bg-clip-text text-4xl font-black uppercase leading-none text-transparent md:text-6xl">
+              {isCamerinoPage
+                ? "Entra a tu camerino"
+                : "Crea tu perfil y entra a tu camerino"}
+            </h1>
+            <p className="mt-5 text-lg font-medium leading-8 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.18)]">
+              {isCamerinoPage
+                ? "Inicia sesion para ver tu espacio personal, editar tu estilo y mostrar tus mejores muestras."
+                : "El registro es para todos: audiencia, fans y futuros artistas. Una vez dentro, desde Mi Perfil puedes activar tu alta de artista para participar en canciones, debuts y el escenario live."}
             </p>
           </div>
-        </div>
+        ) : null}
 
-        <div className="rounded-[24px] border border-white/[0.16] bg-white/[0.035] p-5 text-left shadow-[0_0_18px_rgba(250,204,21,0.11),inset_0_1px_0_rgba(255,255,255,0.18)] md:p-8">
+        <div
+          className={`text-left ${
+            isCamerinoPage && session
+              ? ""
+              : "rounded-[24px] border border-white/[0.16] bg-white/[0.035] p-5 shadow-[0_0_18px_rgba(250,204,21,0.11),inset_0_1px_0_rgba(255,255,255,0.18)] md:p-8"
+          }`}
+        >
           {!session ? (
             <form onSubmit={handleAuth}>
-              <div className="mb-5 grid grid-cols-2 rounded-full border border-white/15 bg-black/30 p-1">
-                <button
-                  className={`rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.12em] transition ${
-                    authMode === "signup"
-                      ? "bg-white text-slate-950"
-                      : "text-white/70"
-                  }`}
-                  type="button"
-                  onClick={() => setAuthMode("signup")}
-                >
-                  Registro
-                </button>
-                <button
-                  className={`rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.12em] transition ${
-                    authMode === "signin"
-                      ? "bg-white text-slate-950"
-                      : "text-white/70"
-                  }`}
-                  type="button"
-                  onClick={() => setAuthMode("signin")}
-                >
-                  Entrar
-                </button>
-              </div>
+              {isCamerinoPage ? (
+                <div className="mb-5 rounded-[22px] border border-cyan-300/20 bg-cyan-300/10 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
+                    Acceso privado
+                  </p>
+                  <p className="mt-2 text-sm font-bold leading-6 text-white/68">
+                    Usa el correo y contraseña de tu cuenta para abrir tu
+                    camerino.
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-5 grid grid-cols-2 rounded-full border border-white/15 bg-black/30 p-1">
+                  <button
+                    className={`rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.12em] transition ${
+                      authMode === "signup"
+                        ? "bg-white text-slate-950"
+                        : "text-white/70"
+                    }`}
+                    type="button"
+                    onClick={() => setAuthMode("signup")}
+                  >
+                    Registro
+                  </button>
+                  <button
+                    className={`rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.12em] transition ${
+                      authMode === "signin"
+                        ? "bg-white text-slate-950"
+                        : "text-white/70"
+                    }`}
+                    type="button"
+                    onClick={() => setAuthMode("signin")}
+                  >
+                    Entrar
+                  </button>
+                </div>
+              )}
 
               <div className="grid gap-4 md:grid-cols-2">
                 <input
@@ -921,23 +1030,25 @@ export default function SignupSection() {
                 />
               </div>
 
-              {authMode === "signup" ? (
-                <ProfileEditor
-                  form={form}
-                  isSaving={isSaving}
-                  onPhotoChange={handlePhotoChange}
-                  photoFile={photoFile}
-                  role={role}
-                  setRole={setRole}
-                  showArtistRegistration={false}
-                  updateForm={updateForm}
-                />
+              {authMode === "signup" && !isCamerinoPage ? (
+                isCamerinoPage ? null : (
+                  <ProfileEditor
+                    form={form}
+                    isSaving={isSaving}
+                    onPhotoChange={handlePhotoChange}
+                    photoFile={photoFile}
+                    role={role}
+                    setRole={setRole}
+                    showArtistRegistration={false}
+                    updateForm={updateForm}
+                  />
+                )
               ) : null}
 
               <button className="gold-button mt-5 w-full" disabled={isSaving}>
                 {isSaving
                   ? "Guardando..."
-                  : authMode === "signup"
+                  : authMode === "signup" && !isCamerinoPage
                     ? "Crear mi perfil"
                     : "Entrar a mi camerino"}
               </button>
@@ -953,15 +1064,30 @@ export default function SignupSection() {
                     {myProfile?.stage_name || myProfile?.name || "Tu camerino"}
                   </h2>
                 </div>
-                <button className="secondary-button px-5 py-3" onClick={signOut}>
-                  Salir
-                </button>
+                {!isCamerinoPage ? (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className="secondary-button px-5 py-3"
+                    type="button"
+                    onClick={() => setIsEditingProfile((current) => !current)}
+                  >
+                    {isEditingProfile ? "Cerrar edición" : "Editar mi perfil"}
+                  </button>
+                  <button className="secondary-button px-5 py-3" onClick={signOut}>
+                    Salir
+                  </button>
+                </div>
+                ) : null}
               </div>
 
               <CamerinoProfile
                 addSample={addSample}
                 deleteSample={deleteSample}
                 form={form}
+                isSaving={isSaving}
+                onPhotoChange={handlePhotoChange}
+                onSave={handleCamerinoSave}
+                photoFile={photoFile}
                 sampleTitle={sampleTitle}
                 sampleType={sampleType}
                 sampleUrl={sampleUrl}
@@ -972,21 +1098,29 @@ export default function SignupSection() {
                 updateForm={updateForm}
               />
 
-              <form onSubmit={handleProfileSave}>
-                <ProfileEditor
-                  form={form}
-                  isSaving={isSaving}
-                  onPhotoChange={handlePhotoChange}
-                  photoFile={photoFile}
-                  role={role}
-                  setRole={setRole}
-                  showArtistRegistration
-                  updateForm={updateForm}
-                />
-                <button className="gold-button mt-5 w-full" disabled={isSaving}>
-                  {isSaving ? "Guardando..." : "Guardar perfil"}
-                </button>
-              </form>
+              {isEditingProfile && !isCamerinoPage ? (
+                <form
+                  className="rounded-[24px] border border-white/[0.14] bg-black/24 p-4 md:p-5"
+                  onSubmit={handleProfileSave}
+                >
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
+                    Editar datos
+                  </p>
+                  <ProfileEditor
+                    form={form}
+                    isSaving={isSaving}
+                    onPhotoChange={handlePhotoChange}
+                    photoFile={photoFile}
+                    role={role}
+                    setRole={setRole}
+                    showArtistRegistration
+                    updateForm={updateForm}
+                  />
+                  <button className="gold-button mt-5 w-full" disabled={isSaving}>
+                    {isSaving ? "Guardando..." : "Guardar perfil"}
+                  </button>
+                </form>
+              ) : null}
             </div>
           )}
 
@@ -1001,9 +1135,9 @@ export default function SignupSection() {
             </div>
           ) : null}
 
-          {status ? (
+          {displayedStatus ? (
             <p className="mt-4 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-100">
-              {status}
+              {displayedStatus}
             </p>
           ) : null}
         </div>

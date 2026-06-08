@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  createSupabaseBrowserClient,
+  hasSupabaseBrowserConfig,
+} from "@/lib/supabase/client";
 
 export type NavigationLink = {
   href: string;
@@ -27,8 +30,8 @@ export const publicNavigationLinks: NavigationLink[] = [
 
 export const joinedNavigationLinks: NavigationLink[] = [
   {
-    href: "/participar",
-    label: "Mi Perfil",
+    href: "/camerino",
+    label: "Camerino",
     orbitClass: "orbit-one",
     toneClass: "orbit-home",
   },
@@ -58,7 +61,7 @@ export const joinedNavigationLinks: NavigationLink[] = [
   },
   {
     href: "/salon-de-la-fama",
-    label: "Salón de la Fama",
+    label: "Salón",
     orbitClass: "orbit-six",
     toneClass: "orbit-categories",
   },
@@ -71,10 +74,17 @@ export const joinedNavigationLinks: NavigationLink[] = [
 ];
 
 export function useJoinedNavigation() {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(
+    () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
+    [],
+  );
   const [isJoined, setIsJoined] = useState(false);
 
   useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
     let isActive = true;
 
     supabase.auth.getSession().then(({ data }) => {

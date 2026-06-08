@@ -13,14 +13,15 @@ const orbitToneByHref: Record<string, string> = {
   "/about": "orbit-about",
   "/categorias": "orbit-categories",
   "/concursos": "orbit-contests",
-  "/participar": "orbit-participate",
+  "/camerino": "orbit-home",
+  "/registro": "orbit-participate",
   "/escenario": "orbit-participate",
   "/mentores": "orbit-mentors",
   "/salon-de-la-fama": "orbit-categories",
 };
 
 export default function Hero() {
-  const { links } = useJoinedNavigation();
+  const { isJoined, links } = useJoinedNavigation();
 
   return (
     <section
@@ -59,9 +60,11 @@ export default function Hero() {
             de oportunidades.
           </p>
 
-          <Link href="/participar" className="gold-button mt-10">
-            Unirme
-          </Link>
+          {!isJoined && (
+            <Link href="/registro" className="gold-button mt-10">
+              Unirme
+            </Link>
+          )}
         </div>
         {/* ==========================================
             ORBIT MENU

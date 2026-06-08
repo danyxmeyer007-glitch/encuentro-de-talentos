@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import BackgroundVideo from "@/components/BackgroundVideo";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import ConditionalFooter from "@/components/ConditionalFooter";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://encuentro-de-talentos.vercel.app"),
@@ -40,7 +41,8 @@ export default function RootLayout({
         <BackgroundVideo />
         <Navbar />
         {children}
-        <Footer />
+        <ConditionalFooter />
+        <Analytics />
       </body>
     </html>
   );

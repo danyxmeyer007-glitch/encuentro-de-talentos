@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useJoinedNavigation } from "@/lib/useJoinedNavigation";
 
 export default function Home() {
-  const { links } = useJoinedNavigation();
+  const { isJoined, links } = useJoinedNavigation();
 
   return (
     <main className="home-page">
@@ -24,9 +24,11 @@ export default function Home() {
               recibir apoyo y conectar con nuevas oportunidades.
             </p>
 
-            <Link href="/participar" className="hero-button">
-              Unirme
-            </Link>
+            {!isJoined && (
+              <Link href="/registro" className="hero-button">
+                Unirme
+              </Link>
+            )}
           </div>
 
           <div className="hero-orbit-area">

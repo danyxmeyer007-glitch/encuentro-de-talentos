@@ -1,11 +1,22 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  createSupabaseBrowserClient,
+  hasSupabaseBrowserConfig,
+} from "@/lib/supabase/client";
+
+const singingContestSlug = "voz-piloto-2026";
+
 const contests = [
   {
     title: "Temporada Piloto: Voz",
-    status: "Convocatoria abierta",
+    status: "Inicia el 15 de julio",
     icon: "🎤",
     participants: "Próximamente",
     category: "Canto",
-    description: "Para voces solistas, dúos e intérpretes listos para debutar frente a la comunidad.",
+    description: "Para voces solistas, dúos e intérpretes listos para debutar frente a la comunidad. El concurso empieza el 15 de julio.",
   },
   {
     title: "Batalla de Beats",
@@ -63,6 +74,100 @@ type FeaturedContestsProps = {
 };
 
 export default function FeaturedContests({ fullPage = false }: FeaturedContestsProps) {
+  const supabase = useMemo(
+    () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
+    [],
+  );
+  const [userId, setUserId] = useState("");
+  const [participantIds, setParticipantIds] = useState<string[]>([]);
+  const [participantProfiles, setParticipantProfiles] = useState<
+    Array<{ user_id: string; username: string; photo_url: string | null }>
+  >([]);
+  const [performers, setPerformers] = useState<
+    Array<{ user_id: string; stage_name: string | null; genre: string | null }>
+  >([]);
+  const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+
+    async function loadParticipants() {
+      const { data: sessionData } = await client.auth.getSession();
+      setUserId(sessionData.session?.user.id ?? "");
+
+      const registrations = await client
+        .from("contest_registrations")
+        .select("user_id")
+        .eq("contest_slug", singingContestSlug);
+
+      if (registrations.error) {
+        setStatus(registrations.error.message);
+        return;
+      }
+
+      const ids = (registrations.data ?? []).map((item) => item.user_id);
+      setParticipantIds(ids);
+
+      if (!ids.length) {
+        setParticipantProfiles([]);
+        setPerformers([]);
+        return;
+      }
+
+      const [profilesResponse, performersResponse] = await Promise.all([
+        client
+          .from("profiles")
+          .select("user_id, username, photo_url")
+          .in("user_id", ids),
+        client
+          .from("performer_profiles")
+          .select("user_id, stage_name, genre")
+          .in("user_id", ids),
+      ]);
+
+      setParticipantProfiles(profilesResponse.data ?? []);
+      setPerformers(performersResponse.data ?? []);
+    }
+
+    void loadParticipants();
+  }, [supabase]);
+
+  async function registerForSinging() {
+    if (!supabase) {
+      setStatus("Configura Supabase para registrar participantes.");
+      return;
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUserId = sessionData.session?.user.id;
+
+    if (!currentUserId) {
+      setStatus("Inicia sesion y crea tu perfil para participar en canto.");
+      return;
+    }
+
+    const { error } = await supabase.from("contest_registrations").insert({
+      contest_slug: singingContestSlug,
+      user_id: currentUserId,
+    });
+
+    if (error && error.code !== "23505") {
+      setStatus(error.message);
+      return;
+    }
+
+    setUserId(currentUserId);
+    setParticipantIds((current) =>
+      current.includes(currentUserId) ? current : [...current, currentUserId],
+    );
+    setStatus("Tu perfil artistico fue agregado a participantes de canto.");
+  }
+
+  const performerByUser = new Map(
+    performers.map((performer) => [performer.user_id, performer]),
+  );
+
   return (
     <section id="concursos" className="relative px-4 py-16 text-white md:py-24">
       <div className="pointer-events-none absolute inset-x-8 top-10 h-56 rounded-full bg-[radial-gradient(circle_at_28%_45%,rgba(34,211,238,0.1),transparent_48%),radial-gradient(circle_at_70%_45%,rgba(236,72,153,0.08),transparent_52%),radial-gradient(circle_at_50%_70%,rgba(250,204,21,0.1),transparent_62%)] blur-[22px]" />
@@ -88,7 +193,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          {contests.map((contest) => (
+          {contests.map((contest, index) => (
             <article
               key={contest.title}
               className="group rounded-[28px] border border-white/[0.16] bg-white/[0.035] p-5 shadow-[0_0_18px_rgba(250,204,21,0.09),inset_0_1px_0_rgba(255,255,255,0.16)] transition hover:-translate-y-1 hover:border-white/25 hover:shadow-[0_0_24px_rgba(34,211,238,0.16),0_0_30px_rgba(250,204,21,0.12),inset_0_1px_0_rgba(255,255,255,0.18)]"
@@ -112,12 +217,83 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
                   {contest.status}
                 </span>
                 <span className="rounded-full border border-white/20 bg-white/[0.035] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
-                  Participantes: {contest.participants}
+                  Participantes: {index === 0 ? participantIds.length : contest.participants}
                 </span>
               </div>
+              {index === 0 ? (
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button
+                    className="gold-button-small"
+                    type="button"
+                    onClick={registerForSinging}
+                  >
+                    {userId && participantIds.includes(userId)
+                      ? "Ya participas"
+                      : "Registrar en canto"}
+                  </button>
+                  <Link className="secondary-button px-4 py-2 text-sm" href="/camerino">
+                    Ver camerino
+                  </Link>
+                </div>
+              ) : null}
             </article>
           ))}
         </div>
+
+        {status ? (
+          <p className="mt-5 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-100">
+            {status}
+          </p>
+        ) : null}
+
+        {fullPage ? (
+          <section className="mt-8 rounded-[32px] border border-white/[0.16] bg-white/[0.035] p-6 shadow-[0_0_18px_rgba(250,204,21,0.09),inset_0_1px_0_rgba(255,255,255,0.16)]">
+            <p className="text-sm font-black uppercase tracking-[0.25em] text-yellow-300">
+              Participantes de canto
+            </p>
+            <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {participantProfiles.length ? (
+                participantProfiles.map((profile) => {
+                  const performer = performerByUser.get(profile.user_id);
+                  const displayName =
+                    performer?.stage_name || `@${profile.username}`;
+
+                  return (
+                    <article
+                      className="rounded-2xl border border-white/12 bg-black/24 p-4"
+                      key={profile.user_id}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-12 w-12 overflow-hidden rounded-2xl border border-cyan-300/25 bg-cyan-300/10 place-items-center font-black text-cyan-100">
+                          {profile.photo_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              alt=""
+                              className="h-full w-full object-cover"
+                              src={profile.photo_url}
+                            />
+                          ) : (
+                            displayName.slice(0, 1)
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="truncate font-black">{displayName}</h3>
+                          <p className="truncate text-sm font-bold text-cyan-200">
+                            {performer?.genre || "Canto"}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="rounded-2xl border border-white/12 bg-black/24 p-4 text-sm font-bold text-white/58 md:col-span-2 lg:col-span-3">
+                  Aun no hay participantes inscritos en canto.
+                </p>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         {fullPage ? (
           <div className="mt-12 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
