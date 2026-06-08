@@ -66,9 +66,15 @@ export const joinedNavigationLinks: NavigationLink[] = [
     toneClass: "orbit-categories",
   },
   {
+    href: "/concursos#como-funciona",
+    label: "Cómo funciona",
+    orbitClass: "orbit-seven",
+    toneClass: "orbit-about",
+  },
+  {
     href: "/about",
     label: "Acerca",
-    orbitClass: "orbit-seven",
+    orbitClass: "orbit-eight",
     toneClass: "orbit-about",
   },
 ];

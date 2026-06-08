@@ -16,8 +16,9 @@ type TokenRequest = {
   code?: string;
 };
 
-const roomName = process.env.LIVEKIT_ROOM_NAME ?? "voces-debut-julio-15";
+const roomName = process.env.LIVEKIT_ROOM_NAME ?? "encuentrodetalentos";
 const contestSlug = "voz-piloto-2026";
+const maxVoiceParticipants = 10;
 
 async function createLiveKitToken(role: LiveKitRole, identity: string) {
   const apiKey = process.env.LIVEKIT_API_KEY;
@@ -29,6 +30,7 @@ async function createLiveKitToken(role: LiveKitRole, identity: string) {
 
   const canPublish = role === "host" || role === "performer";
   const canAdmin = role === "host";
+  const canCreateRoom = role === "host" || role === "performer";
 
   const token = new AccessToken(apiKey, apiSecret, {
     name: identity,
@@ -40,7 +42,7 @@ async function createLiveKitToken(role: LiveKitRole, identity: string) {
   token.addGrant({
     room: roomName,
     roomAdmin: canAdmin,
-    roomCreate: canAdmin,
+    roomCreate: canCreateRoom,
     roomJoin: true,
     canPublish,
     canPublishData: true,
@@ -98,24 +100,34 @@ async function getAuthenticatedUserId(request: Request) {
   return data.user?.id ?? null;
 }
 
-async function isRegisteredContestPerformer(userId: string | null) {
-  if (!userId || !hasSupabaseServerConfig()) {
-    return false;
+async function getFixedVoiceParticipants() {
+  if (!hasSupabaseServerConfig()) {
+    return [];
   }
 
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("contest_registrations")
-    .select("id")
+    .select("user_id")
     .eq("contest_slug", contestSlug)
-    .eq("user_id", userId)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(maxVoiceParticipants);
 
   if (error) {
     throw error;
   }
 
-  return Boolean(data);
+  return (data ?? []).map((registration) => registration.user_id);
+}
+
+async function isRegisteredContestPerformer(userId: string | null) {
+  if (!userId || !hasSupabaseServerConfig()) {
+    return false;
+  }
+
+  const fixedParticipants = await getFixedVoiceParticipants();
+
+  return fixedParticipants.includes(userId);
 }
 
 export async function POST(request: Request) {
@@ -151,12 +163,7 @@ export async function POST(request: Request) {
   if (role === "performer") {
     const userId = await getAuthenticatedUserId(request);
     const isRegisteredPerformer = await isRegisteredContestPerformer(userId);
-    const hasPerformerCode = Boolean(
-      process.env.LIVEKIT_PERFORMER_CODE &&
-        body.code === process.env.LIVEKIT_PERFORMER_CODE,
-    );
-
-    if (!isRegisteredPerformer && !hasPerformerCode) {
+    if (!isRegisteredPerformer) {
       return NextResponse.json(
         { error: "Solo participantes registrados en canto pueden publicar" },
         { status: 403 },

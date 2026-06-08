@@ -13,6 +13,7 @@ const orbitToneByHref: Record<string, string> = {
   "/about": "orbit-about",
   "/categorias": "orbit-categories",
   "/concursos": "orbit-contests",
+  "/concursos#como-funciona": "orbit-about",
   "/camerino": "orbit-home",
   "/registro": "orbit-participate",
   "/escenario": "orbit-participate",

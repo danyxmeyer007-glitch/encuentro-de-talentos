@@ -48,7 +48,8 @@ type RoomSignal =
     };
 
 const contestSlug = "voz-piloto-2026";
-const liveKitRoomName = "voces-debut-julio-15";
+const liveKitRoomName = "encuentrodetalentos";
+const maxVoiceParticipants = 10;
 
 const fallbackPerformers: StagePerformer[] = [
   {
@@ -117,8 +118,7 @@ export default function Escenario() {
   const [muted, setMuted] = useState(false);
   const votingOpen = true;
   const [votes, setVotes] = useState(64);
-  const [liveKitRole, setLiveKitRole] = useState<Extract<LiveKitRole, "audience" | "performer">>("audience");
-  const [liveKitIdentity, setLiveKitIdentity] = useState("");
+  const liveKitIdentity = "";
   const [liveKitStatus, setLiveKitStatus] = useState("Listo para conectar");
   const [connectedRole, setConnectedRole] = useState<LiveKitRole | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -140,6 +140,8 @@ export default function Escenario() {
   );
   const canPublishThisTurn = currentUserRegistered && isMyTurn;
   const hasNextPerformer = safeActivePerformer < stageQueue.length - 1;
+  const isFinalModerator = currentUserRegistered && isMyTurn && !hasNextPerformer;
+  const canModerateStage = currentUserRegistered && isMyTurn;
 
   const liveListeners = useMemo(
     () => listeners.length + 218 + (joined ? 1 : 0),
@@ -189,7 +191,7 @@ export default function Escenario() {
         return;
       }
 
-      const registrations = registrationsResult.data ?? [];
+      const registrations = (registrationsResult.data ?? []).slice(0, maxVoiceParticipants);
       const userIds = registrations.map((registration) => registration.user_id);
 
       if (userIds.length === 0) {
@@ -401,6 +403,10 @@ export default function Escenario() {
   }
 
   function handlePerformerChange(index: number) {
+    if (roomOpen) {
+      return;
+    }
+
     setActivePerformer(index);
   }
 
@@ -437,7 +443,7 @@ export default function Escenario() {
     }
   }
 
-  async function handleLiveKitConnect(role: LiveKitRole = liveKitRole) {
+  async function handleLiveKitConnect(role: LiveKitRole = "audience") {
     if (role === "performer" && !canPublishThisTurn) {
       setLiveKitStatus(
         currentUserRegistered
@@ -445,7 +451,7 @@ export default function Escenario() {
           : "Registra tu perfil en canto para entrar como performer",
       );
 
-      return;
+      return false;
     }
 
     setLiveKitStatus("Generando token");
@@ -466,7 +472,7 @@ export default function Escenario() {
       headers,
       body: JSON.stringify({
         role,
-        identity: liveKitIdentity,
+        identity: liveKitIdentity || (role === "performer" ? performer.name : ""),
         code: "",
       }),
     });
@@ -476,7 +482,7 @@ export default function Escenario() {
 
       setLiveKitStatus(result.error ?? "No se pudo generar token");
 
-      return;
+      return false;
     }
 
     const result = (await response.json()) as {
@@ -488,7 +494,7 @@ export default function Escenario() {
     if (!result.serverUrl) {
       setLiveKitStatus("Falta LIVEKIT_URL");
 
-      return;
+      return false;
     }
 
     roomRef.current?.disconnect();
@@ -552,7 +558,17 @@ export default function Escenario() {
         setLiveKitStatus("Desconectado");
       });
 
-    await room.connect(result.serverUrl, result.token);
+    try {
+      await room.connect(result.serverUrl, result.token);
+    } catch (error) {
+      setLiveKitStatus(
+        error instanceof Error
+          ? `No se pudo conectar a LiveKit: ${error.message}`
+          : "No se pudo conectar a LiveKit",
+      );
+
+      return false;
+    }
 
     roomRef.current = room;
     setConnectedRole(role);
@@ -560,11 +576,13 @@ export default function Escenario() {
     setLiveKitParticipants(room.numParticipants);
     pushRoomEvent(`Conectado como ${role}`);
     setLiveKitStatus(`Conectado a ${result.roomName}`);
+
+    return true;
   }
 
   async function handleOpenStage() {
-    if (!currentUserRegistered) {
-      setLiveKitStatus("Registrate en canto para abrir el escenario");
+    if (!canModerateStage) {
+      setLiveKitStatus("Solo el moderador en turno puede encender el live");
 
       return;
     }
@@ -597,23 +615,82 @@ export default function Escenario() {
     setRoomOpen(true);
     pushRoomEvent("Escenario abierto por participante registrado");
     setLiveKitStatus("Escenario live: la audiencia ya puede entrar");
+    await handleStartPublishing();
   }
 
-  async function handleStartPublishing() {
-    if (!roomRef.current || (connectedRole !== "performer" && connectedRole !== "host")) {
-      setLiveKitStatus("Conecta como performer o host");
+  async function handleCloseStage() {
+    if (!isFinalModerator) {
+      setLiveKitStatus("Solo el ultimo moderador puede apagar el live");
 
       return;
     }
 
-    if (connectedRole === "performer" && !canPublishThisTurn) {
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    const { data: sessionData } = supabase
+      ? await supabase.auth.getSession()
+      : { data: { session: null } };
+
+    if (sessionData.session?.access_token) {
+      headers.Authorization = `Bearer ${sessionData.session.access_token}`;
+    }
+
+    const response = await fetch("/api/livekit/room-state", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ status: "closed" }),
+    });
+
+    if (!response.ok) {
+      const result = (await response.json()) as { error?: string };
+
+      setLiveKitStatus(result.error ?? "No se pudo apagar el escenario");
+
+      return;
+    }
+
+    await handleStopPublishing();
+    handleLiveKitDisconnect();
+    setRoomOpen(false);
+    setMicPassed(false);
+    pushRoomEvent("Live apagado por ultimo moderador");
+    setLiveKitStatus("Escenario cerrado");
+  }
+
+  async function handleStartPublishing() {
+    if (!roomRef.current || connectedRole !== "performer") {
+      if (!canModerateStage) {
+        setLiveKitStatus("Conecta como participante en turno");
+
+        return;
+      }
+
+      const connected = await handleLiveKitConnect("performer");
+
+      if (!connected || !roomRef.current) {
+        return;
+      }
+    }
+
+    if (!canModerateStage) {
       setLiveKitStatus("Tu mic/camara se activa solo cuando llega tu turno");
 
       return;
     }
 
-    await roomRef.current.localParticipant.setMicrophoneEnabled(true);
-    await roomRef.current.localParticipant.setCameraEnabled(cameraEnabledForTurn);
+    try {
+      await roomRef.current.localParticipant.setMicrophoneEnabled(true);
+      await roomRef.current.localParticipant.setCameraEnabled(cameraEnabledForTurn);
+    } catch (error) {
+      setLiveKitStatus(
+        error instanceof Error
+          ? `Permite el microfono/camara en el navegador: ${error.message}`
+          : "Permite el microfono/camara en el navegador",
+      );
+
+      return;
+    }
     setPublishing(true);
     setMicPassed(true);
     setMuted(false);
@@ -634,8 +711,14 @@ export default function Escenario() {
   }
 
   async function handlePassMicrophone() {
+    if (!canModerateStage) {
+      setLiveKitStatus("Solo el moderador en turno puede pasar el microfono");
+
+      return;
+    }
+
     if (!hasNextPerformer) {
-      handleLiveKitDisconnect();
+      setLiveKitStatus("Este es el ultimo turno. Apaga el live al terminar.");
 
       return;
     }
@@ -762,6 +845,10 @@ export default function Escenario() {
             ))}
           </div>
 
+          <div className="stage-camera-frame">
+            <div ref={mediaContainerRef} className="livekit-media" aria-live="polite" />
+          </div>
+
           <div className="song-now">
             <span>{roomOpen ? "Now performing" : "Fila preparada"}</span>
             <strong>{performer.song}</strong>
@@ -826,19 +913,21 @@ export default function Escenario() {
             <button
               type="button"
               className="publish-button"
-              disabled={!currentUserRegistered || roomOpen}
+              disabled={!canModerateStage || roomOpen}
               onClick={handleOpenStage}
             >
               {roomOpen ? "Escenario live" : "Abrir escenario"}
             </button>
-            <button
-              type="button"
-              className="publish-button"
-              disabled={!canPublishThisTurn}
-              onClick={() => handleLiveKitConnect("performer")}
-            >
-              Entrar a mi turno
-            </button>
+            {currentUserRegistered ? (
+              <button
+                type="button"
+                className="publish-button"
+                disabled={!canPublishThisTurn}
+                onClick={() => handleLiveKitConnect("performer")}
+              >
+                Entrar a mi turno
+              </button>
+            ) : null}
             <div className="stream-state">
               <span>{queueStatus}</span>
               <span>{currentUserRegistered ? "Registrado en canto" : "Registrate en concursos para participar"}</span>
@@ -876,61 +965,43 @@ export default function Escenario() {
             <span>Sala LiveKit</span>
             <strong>{connectedRole ? connectedRole : "offline"}</strong>
           </div>
-          <div className="access-form">
-            <input
-              value={liveKitIdentity}
-              onChange={(event) => setLiveKitIdentity(event.target.value)}
-              placeholder="Nombre en sala"
-              aria-label="Nombre en sala"
-            />
-            <button type="button" onClick={() => handleLiveKitConnect()}>
-              Conectar rol
-            </button>
-          </div>
-          <div className="role-switcher" aria-label="Seleccionar rol LiveKit">
-            {(["audience", "performer"] as const).map((role) => (
-              <button
-                key={role}
-                type="button"
-                className={liveKitRole === role ? "is-active" : ""}
-                onClick={() => setLiveKitRole(role)}
-              >
-                {role}
-              </button>
-            ))}
-          </div>
+          <p className="livekit-note">
+            La audiencia solo escucha y vota. Los controles aparecen para el
+            moderador registrado cuando llega su turno.
+          </p>
           <div className="livekit-actions">
-            <label className="camera-toggle">
-              <input
-                type="checkbox"
-                checked={cameraEnabledForTurn}
-                onChange={(event) => setCameraEnabledForTurn(event.target.checked)}
-              />
-              Camara opcional
-            </label>
-            <button type="button" onClick={handleStartPublishing}>
-              {cameraEnabledForTurn ? "Publicar mic/camara" : "Publicar microfono"}
-            </button>
-            {hasNextPerformer ? (
-              <button
-                type="button"
-                onClick={handlePassMicrophone}
-                disabled={!publishing || connectedRole === "audience"}
-              >
-                Pasar microfono
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleLiveKitDisconnect}
-                disabled={!connectedRole}
-              >
-                Salir del escenario
-              </button>
-            )}
-            <button type="button" onClick={handleStopPublishing} disabled={!publishing}>
-              Detener publicacion
-            </button>
+            {canModerateStage ? (
+              <>
+                <label className="camera-toggle">
+                  <input
+                    type="checkbox"
+                    checked={cameraEnabledForTurn}
+                    onChange={(event) => setCameraEnabledForTurn(event.target.checked)}
+                  />
+                  Camara opcional
+                </label>
+                <button type="button" onClick={handleStartPublishing}>
+                  {cameraEnabledForTurn ? "Encender mic/camara" : "Encender microfono"}
+                </button>
+                {hasNextPerformer ? (
+                  <button
+                    type="button"
+                    onClick={handlePassMicrophone}
+                    disabled={!publishing || connectedRole !== "performer"}
+                  >
+                    Pasar microfono
+                  </button>
+                ) : null}
+                <button type="button" onClick={handleStopPublishing} disabled={!publishing}>
+                  Apagar microfono
+                </button>
+                {isFinalModerator ? (
+                  <button type="button" onClick={handleCloseStage} disabled={!roomOpen}>
+                    Apagar live
+                  </button>
+                ) : null}
+              </>
+            ) : null}
             <button type="button" onClick={handleLiveKitDisconnect} disabled={!connectedRole}>
               Salir
             </button>
@@ -940,7 +1011,6 @@ export default function Escenario() {
               <span key={`${event}-${index}`}>{event}</span>
             ))}
           </div>
-          <div ref={mediaContainerRef} className="livekit-media" aria-live="polite" />
         </section>
       </section>
 
@@ -1373,6 +1443,20 @@ export default function Escenario() {
           box-shadow: 0 0 28px rgba(250, 204, 21, 0.12);
         }
 
+        .stage-camera-frame {
+          width: min(620px, 100%);
+          justify-self: center;
+          border: 1px solid rgba(250, 204, 21, 0.22);
+          border-radius: 8px;
+          background:
+            radial-gradient(circle at 50% 0%, rgba(250, 204, 21, 0.12), transparent 48%),
+            rgba(2, 6, 23, 0.62);
+          padding: 0.65rem;
+          box-shadow:
+            0 0 34px rgba(34, 211, 238, 0.13),
+            0 0 42px rgba(250, 204, 21, 0.11);
+        }
+
         .song-now span {
           color: #67e8f9;
           font-size: 0.72rem;
@@ -1544,10 +1628,8 @@ export default function Escenario() {
           text-transform: uppercase;
         }
 
-        .access-form button,
         .vote-button,
         .publish-button,
-        .role-switcher button,
         .livekit-actions button {
           min-height: 42px;
           border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1563,27 +1645,12 @@ export default function Escenario() {
           transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
         }
 
-        .access-form button:hover,
         .vote-button:hover:not(:disabled),
         .publish-button:hover,
-        .role-switcher button:hover,
         .livekit-actions button:hover:not(:disabled) {
           transform: translateY(-2px);
           border-color: rgba(34, 211, 238, 0.48);
           background: rgba(34, 211, 238, 0.12);
-        }
-
-        .role-switcher button.is-active {
-          border-color: rgba(250, 204, 21, 0.58);
-          background: rgba(250, 204, 21, 0.14);
-          color: #fef3c7;
-          box-shadow: 0 0 18px rgba(250, 204, 21, 0.16);
-        }
-
-        .access-form {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          gap: 0.6rem;
         }
 
         .queue-list {
@@ -1648,22 +1715,6 @@ export default function Escenario() {
           text-transform: uppercase;
         }
 
-        .access-form input {
-          min-width: 0;
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          border-radius: 999px;
-          background: rgba(0, 0, 0, 0.42);
-          color: white;
-          font-size: 0.9rem;
-          font-weight: 800;
-          outline: none;
-          padding: 0.72rem 0.95rem;
-        }
-
-        .access-form input::placeholder {
-          color: rgba(224, 242, 254, 0.58);
-        }
-
         .stream-state {
           display: grid;
           gap: 0.48rem;
@@ -1709,11 +1760,18 @@ export default function Escenario() {
             inset 0 1px 0 rgba(255, 255, 255, 0.12);
         }
 
-        .role-switcher,
         .livekit-actions {
           display: flex;
           flex-wrap: wrap;
           gap: 0.6rem;
+        }
+
+        .livekit-note {
+          margin: 0;
+          color: #bae6fd;
+          font-size: 0.86rem;
+          font-weight: 800;
+          line-height: 1.6;
         }
 
         .camera-toggle {
@@ -1741,10 +1799,11 @@ export default function Escenario() {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
           gap: 0.8rem;
-          min-height: 68px;
+          min-height: 190px;
           border: 1px dashed rgba(103, 232, 249, 0.24);
           border-radius: 8px;
           padding: 0.75rem;
+          place-items: center;
         }
 
         .livekit-media:empty::before {
@@ -1757,6 +1816,7 @@ export default function Escenario() {
         .livekit-media video,
         .livekit-media audio {
           width: 100%;
+          max-height: 340px;
           border-radius: 8px;
           background: #020617;
         }

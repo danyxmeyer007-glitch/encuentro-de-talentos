@@ -10,8 +10,10 @@ type RoomStateRequest = {
   status?: "scheduled" | "live" | "closed";
 };
 
-const roomName = process.env.LIVEKIT_ROOM_NAME ?? "voces-debut-julio-15";
+const roomName = process.env.LIVEKIT_ROOM_NAME ?? "encuentrodetalentos";
 const contestSlug = "voz-piloto-2026";
+const minVoiceParticipants = 1;
+const maxVoiceParticipants = 10;
 
 async function getAuthenticatedUserId(request: Request) {
   if (!hasSupabaseServerConfig()) {
@@ -35,24 +37,40 @@ async function getAuthenticatedUserId(request: Request) {
   return data.user?.id ?? null;
 }
 
-async function isRegisteredContestPerformer(userId: string | null) {
-  if (!userId || !hasSupabaseServerConfig()) {
-    return false;
-  }
-
+async function getFixedVoiceParticipants() {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("contest_registrations")
-    .select("id")
+    .select("user_id")
     .eq("contest_slug", contestSlug)
-    .eq("user_id", userId)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(maxVoiceParticipants);
 
   if (error) {
     throw error;
   }
 
-  return Boolean(data);
+  return (data ?? []).map((registration) => registration.user_id);
+}
+
+async function isRegisteredContestPerformer(userId: string | null) {
+  if (!userId || !hasSupabaseServerConfig()) {
+    return false;
+  }
+
+  const fixedParticipants = await getFixedVoiceParticipants();
+
+  return fixedParticipants.includes(userId);
+}
+
+async function isFinalContestModerator(userId: string | null) {
+  if (!userId || !hasSupabaseServerConfig()) {
+    return false;
+  }
+
+  const fixedParticipants = await getFixedVoiceParticipants();
+
+  return fixedParticipants.at(-1) === userId;
 }
 
 export async function POST(request: Request) {
@@ -82,13 +100,36 @@ export async function POST(request: Request) {
   }
 
   const status = body.status ?? "live";
+
+  if (status === "live") {
+    const fixedParticipants = await getFixedVoiceParticipants();
+
+    if (fixedParticipants.length < minVoiceParticipants) {
+      return NextResponse.json(
+        { error: "Se necesita minimo 1 participante registrado para abrir el live" },
+        { status: 403 },
+      );
+    }
+  }
+
+  if (status === "closed") {
+    const isFinalModerator = await isFinalContestModerator(userId);
+
+    if (!isFinalModerator) {
+      return NextResponse.json(
+        { error: "Solo el ultimo moderador puede apagar el live" },
+        { status: 403 },
+      );
+    }
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("live_rooms")
     .upsert(
       {
         livekit_room_name: roomName,
-        title: "Voces Debut",
+        title: "Encuentro de Talentos Live",
         status,
       },
       { onConflict: "livekit_room_name" },

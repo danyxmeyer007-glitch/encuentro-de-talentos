@@ -8,6 +8,8 @@ import {
 } from "@/lib/supabase/client";
 
 const singingContestSlug = "voz-piloto-2026";
+const minVoiceParticipants = 1;
+const maxVoiceParticipants = 10;
 
 const contests = [
   {
@@ -99,14 +101,17 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
       const registrations = await client
         .from("contest_registrations")
         .select("user_id")
-        .eq("contest_slug", singingContestSlug);
+        .eq("contest_slug", singingContestSlug)
+        .order("created_at", { ascending: true });
 
       if (registrations.error) {
         setStatus(registrations.error.message);
         return;
       }
 
-      const ids = (registrations.data ?? []).map((item) => item.user_id);
+      const ids = (registrations.data ?? [])
+        .map((item) => item.user_id)
+        .slice(0, maxVoiceParticipants);
       setParticipantIds(ids);
 
       if (!ids.length) {
@@ -144,6 +149,14 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
 
     if (!currentUserId) {
       setStatus("Inicia sesion y crea tu perfil para participar en canto.");
+      return;
+    }
+
+    if (
+      participantIds.length >= maxVoiceParticipants &&
+      !participantIds.includes(currentUserId)
+    ) {
+      setStatus("La lista fija de canto ya tiene 10 participantes.");
       return;
     }
 
@@ -217,19 +230,30 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
                   {contest.status}
                 </span>
                 <span className="rounded-full border border-white/20 bg-white/[0.035] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
-                  Participantes: {index === 0 ? participantIds.length : contest.participants}
+                  Participantes: {index === 0 ? `${participantIds.length}/${maxVoiceParticipants}` : contest.participants}
                 </span>
+                {index === 0 ? (
+                  <span className="rounded-full border border-white/20 bg-white/[0.035] px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
+                    Mínimo live: {minVoiceParticipants}
+                  </span>
+                ) : null}
               </div>
               {index === 0 ? (
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button
                     className="gold-button-small"
                     type="button"
+                    disabled={
+                      participantIds.length >= maxVoiceParticipants &&
+                      !participantIds.includes(userId)
+                    }
                     onClick={registerForSinging}
                   >
                     {userId && participantIds.includes(userId)
                       ? "Ya participas"
-                      : "Registrar en canto"}
+                      : participantIds.length >= maxVoiceParticipants
+                        ? "Lista llena"
+                        : "Registrar en canto"}
                   </button>
                   <Link className="secondary-button px-4 py-2 text-sm" href="/camerino">
                     Ver camerino

@@ -6,7 +6,11 @@ import Footer from "@/components/Footer";
 export default function ConditionalFooter() {
   const pathname = usePathname();
 
-  if (pathname === "/camerino" || pathname === "/salon-de-la-fama") {
+  if (
+    pathname === "/camerino" ||
+    pathname === "/registro" ||
+    pathname === "/salon-de-la-fama"
+  ) {
     return null;
   }
 

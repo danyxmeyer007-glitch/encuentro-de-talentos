@@ -179,6 +179,14 @@ function normalizeUsername(value: string) {
     .slice(0, 32);
 }
 
+function createInternalUsername(stageName: string, currentUserId: string) {
+  const base = normalizeUsername(stageName) || "perfil_et";
+  const suffix = currentUserId.replace(/-/g, "").slice(0, 8);
+  const maxBaseLength = Math.max(3, 32 - suffix.length - 1);
+
+  return `${base.slice(0, maxBaseLength)}_${suffix}`;
+}
+
 function parseSocialLinks(value: string) {
   const trimmed = value.trim();
 
@@ -273,6 +281,22 @@ function getAgeRange(dateOfBirth: string) {
   return "35+";
 }
 
+function validateRequiredProfileFields(form: ProfileForm, hasProfilePhoto: boolean) {
+  const dateOfBirth = getDateOfBirth(form);
+
+  if (!form.name.trim()) return "Agrega tu nombre completo.";
+  if (!form.stage_name.trim()) return "Agrega tu nombre artistico.";
+  if (!form.country.trim()) return "Selecciona tu pais.";
+  if (!form.city.trim()) return "Agrega tu ciudad.";
+  if (!dateOfBirth) return "Agrega tu fecha de nacimiento completa y valida.";
+  if (!form.gender) return "Selecciona tu genero.";
+  if (!hasProfilePhoto) return "Sube una foto de perfil.";
+  if (!form.talent_type) return "Selecciona tu categoria.";
+  if (!form.bio.trim()) return "Agrega una bio corta para tu perfil.";
+
+  return "";
+}
+
 function getPublicSiteUrl() {
   const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
@@ -315,6 +339,14 @@ function isAlreadyRegisteredError(error: unknown) {
   );
 }
 
+function isSignupDisabledError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message.toLowerCase().includes("signups not allowed");
+}
+
 export default function SignupSection({
   mode = "registro",
 }: {
@@ -329,6 +361,7 @@ export default function SignupSection({
   const [role, setRole] = useState<Role>("audience");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState<ProfileForm>(emptyForm);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [directory, setDirectory] = useState<DirectoryProfile[]>([]);
@@ -646,6 +679,17 @@ export default function SignupSection({
         throw new Error("Falta configurar Supabase para registrar usuarios.");
       }
 
+      if (authModeForRequest === "signup" && !isCamerinoPage) {
+        const validationMessage = validateRequiredProfileFields(
+          form,
+          Boolean(photoFile || form.photo_url),
+        );
+
+        if (validationMessage) {
+          throw new Error(validationMessage);
+        }
+      }
+
       const emailRedirectTo = getEmailRedirectTo();
       const auth =
         authModeForRequest === "signup"
@@ -693,7 +737,11 @@ export default function SignupSection({
         return;
       }
 
-      await saveProfile(nextSession.user.id, nextSession.user.email ?? email, "audience");
+      await saveProfile(
+        nextSession.user.id,
+        nextSession.user.email ?? email,
+        form.stage_name.trim() ? "performer" : "audience",
+      );
       setStatus("Listo. Tu perfil ya esta en el camerino.");
       if (typeof window !== "undefined") {
         window.location.assign("/camerino");
@@ -703,6 +751,10 @@ export default function SignupSection({
         setShowExistingEmailActions(true);
         setStatus(
           "Ese correo ya existe en Supabase. Puede ser un registro pendiente de verificacion; revisa tu correo o reenvia el enlace.",
+        );
+      } else if (isSignupDisabledError(error)) {
+        setStatus(
+          "Los registros estan desactivados en Supabase. Activa Email signups en Authentication para permitir nuevas cuentas.",
         );
       } else {
         setStatus(error instanceof Error ? error.message : "No se pudo registrar.");
@@ -762,29 +814,27 @@ export default function SignupSection({
       return;
     }
 
-    const username = normalizeUsername(form.username);
+    const username =
+      normalizeUsername(form.username) ||
+      createInternalUsername(form.stage_name || form.name, currentUserId);
     const dateOfBirth = getDateOfBirth(form);
+    const validationMessage = validateRequiredProfileFields(
+      form,
+      Boolean(photoFile || form.photo_url),
+    );
 
-    if (!form.name.trim() || username.length < 3) {
-      setStatus("Agrega tu nombre y un usuario de al menos 3 caracteres.");
-      return;
-    }
-
-    if (!dateOfBirth) {
-      setStatus("Agrega tu fecha de nacimiento completa y valida.");
-      return;
-    }
-
-    if (!form.country || !form.gender) {
-      setStatus("Selecciona tu pais y genero para completar tu perfil.");
+    if (validationMessage) {
+      setStatus(validationMessage);
       return;
     }
 
     const photoUrl = await uploadProfilePhoto(currentUserId);
 
+    const nextProfileRole: Role = form.stage_name.trim() ? "performer" : profileRole;
+
     const { error: userError } = await supabase
       .from("users")
-      .update({ role: profileRole })
+      .update({ role: nextProfileRole })
       .eq("id", currentUserId);
 
     if (userError) {
@@ -810,7 +860,7 @@ export default function SignupSection({
       throw profileError;
     }
 
-    if (profileRole === "performer") {
+    if (nextProfileRole === "performer") {
       const { error: performerError } = await supabase
         .from("performer_profiles")
         .upsert({
@@ -1094,6 +1144,7 @@ export default function SignupSection({
               <div className="grid gap-4 md:grid-cols-2">
                 <input
                   className="input"
+                  autoComplete="email"
                   name="email"
                   placeholder="Correo electronico"
                   type="email"
@@ -1104,16 +1155,30 @@ export default function SignupSection({
                   }}
                   required
                 />
-                <input
-                  className="input"
-                  minLength={6}
-                  name="password"
-                  placeholder="Contrasena"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                />
+                <label className="relative block">
+                  <input
+                    className="input w-full pr-28"
+                    autoComplete={
+                      authMode === "signup" ? "new-password" : "current-password"
+                    }
+                    minLength={8}
+                    name="password"
+                    pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}"
+                    placeholder="Contrasena segura"
+                    title="Usa minimo 8 caracteres con letras y numeros."
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                  />
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-cyan-100"
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                  >
+                    {showPassword ? "Ocultar" : "Ver"}
+                  </button>
+                </label>
               </div>
 
               {authMode === "signup" && !isCamerinoPage ? (
@@ -1309,9 +1374,9 @@ function ProfileEditor({
         />
         <input
           className="input"
-          placeholder="Usuario publico"
-          value={form.username}
-          onChange={(event) => updateForm("username", event.target.value)}
+          placeholder="Nombre artistico"
+          value={form.stage_name}
+          onChange={(event) => updateForm("stage_name", event.target.value)}
           required
         />
         <select
@@ -1330,6 +1395,7 @@ function ProfileEditor({
           placeholder="Ciudad"
           value={form.city}
           onChange={(event) => updateForm("city", event.target.value)}
+          required
         />
       </div>
 
@@ -1391,28 +1457,19 @@ function ProfileEditor({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-pink-300/20 bg-pink-300/[0.06] p-4">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-pink-200">
-          Género
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {genderOptions.map((option) => (
-            <button
-              className={`rounded-full border px-4 py-2 text-sm font-black transition ${
-                form.gender === option.value
-                  ? "border-pink-200 bg-pink-300/25 text-pink-50 shadow-[0_0_24px_rgba(236,72,153,0.22)]"
-                  : "border-white/14 bg-black/24 text-white/62 hover:border-pink-200/50 hover:text-white"
-              }`}
-              disabled={isSaving}
-              key={option.value}
-              type="button"
-              onClick={() => updateForm("gender", option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <select
+        className="input"
+        value={form.gender}
+        onChange={(event) => updateForm("gender", event.target.value)}
+        required
+      >
+        <option value="">Género</option>
+        {genderOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
 
       <label className="grid gap-2 rounded-2xl border border-white/15 bg-black/25 p-4">
         <span className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">
@@ -1422,6 +1479,7 @@ function ProfileEditor({
           accept="image/*"
           className="input"
           disabled={isSaving}
+          required={!form.photo_url}
           type="file"
           onChange={onPhotoChange}
         />
@@ -1430,7 +1488,7 @@ function ProfileEditor({
             ? photoFile.name
             : form.photo_url
               ? "Foto actual guardada"
-              : "Sube una imagen desde tu computadora o movil"}
+              : "Sube una imagen desde tu computadora o movil. Máximo 2 MB."}
         </span>
       </label>
 
@@ -1438,6 +1496,7 @@ function ProfileEditor({
         className="input"
         value={form.talent_type}
         onChange={(event) => updateForm("talent_type", event.target.value)}
+        required
       >
         <option value="">Selecciona tu categoria</option>
         {talentOptions.map((option) => (
@@ -1478,12 +1537,6 @@ function ProfileEditor({
           </div>
           <input
             className="input"
-            placeholder="Nombre artistico"
-            value={form.stage_name}
-            onChange={(event) => updateForm("stage_name", event.target.value)}
-          />
-          <input
-            className="input"
             placeholder="Genero o estilo"
             value={form.genre}
             onChange={(event) => updateForm("genre", event.target.value)}
@@ -1516,6 +1569,7 @@ function ProfileEditor({
         placeholder="Bio corta para tu camerino"
         value={form.bio}
         onChange={(event) => updateForm("bio", event.target.value)}
+        required
       />
     </div>
   );
