@@ -625,6 +625,85 @@ export default function SignupSection({
     }));
   }
 
+  async function saveCamerinoTheme(nextTheme: string) {
+    if (!supabase || !userId) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ camerino_theme: nextTheme || "gold" })
+      .eq("user_id", userId);
+
+    if (error) {
+      setStatus(error.message);
+    }
+  }
+
+  function updateCamerinoForm(
+    field: "camerino_theme" | "stage_name",
+    value: string,
+  ) {
+    updateForm(field, value);
+
+    if (field === "camerino_theme") {
+      void saveCamerinoTheme(value);
+    }
+  }
+
+  async function saveCamerinoBasics() {
+    if (!supabase) {
+      setStatus("Falta configurar Supabase para guardar el camerino.");
+      return;
+    }
+
+    if (!userId) {
+      setStatus("Inicia sesion para guardar tu camerino.");
+      return;
+    }
+
+    const nextTheme = form.camerino_theme || "gold";
+    const nextStageName = form.stage_name.trim();
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ camerino_theme: nextTheme })
+      .eq("user_id", userId);
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    if (nextStageName) {
+      const { error: userError } = await supabase
+        .from("users")
+        .update({ role: "performer" })
+        .eq("id", userId);
+
+      if (userError) {
+        throw userError;
+      }
+
+      const { error: performerError } = await supabase
+        .from("performer_profiles")
+        .upsert({
+          user_id: userId,
+          stage_name: nextStageName,
+          genre: form.genre.trim() || form.talent_type || null,
+          experience_level: form.experience_level.trim() || null,
+          social_links: parseSocialLinks(form.social_links),
+          demo_video_url: form.demo_video_url.trim() || null,
+        });
+
+      if (performerError) {
+        throw performerError;
+      }
+    }
+
+    setRole(nextStageName ? "performer" : role);
+    await loadCamerino(userId);
+  }
+
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const nextFile = event.target.files?.[0] ?? null;
 
@@ -909,8 +988,7 @@ export default function SignupSection({
     setIsSaving(true);
 
     try {
-      const nextRole = form.stage_name.trim() ? "performer" : role;
-      await saveProfile(userId, email, nextRole);
+      await saveCamerinoBasics();
       setStatus("Camerino actualizado.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo guardar.");
@@ -1246,7 +1324,7 @@ export default function SignupSection({
                 setSampleTitle={setSampleTitle}
                 setSampleType={setSampleType}
                 setSampleUrl={setSampleUrl}
-                updateForm={updateForm}
+                updateForm={updateCamerinoForm}
               />
 
               {isEditingProfile && !isCamerinoPage ? (
