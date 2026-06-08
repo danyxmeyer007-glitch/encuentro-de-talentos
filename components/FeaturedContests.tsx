@@ -89,6 +89,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
     Array<{ user_id: string; stage_name: string | null; genre: string | null }>
   >([]);
   const [status, setStatus] = useState("");
+  const [participantsRefreshKey, setParticipantsRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!supabase) return;
@@ -136,7 +137,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
     }
 
     void loadParticipants();
-  }, [supabase]);
+  }, [participantsRefreshKey, supabase]);
 
   async function registerForSinging() {
     if (!supabase) {
@@ -145,7 +146,8 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
     }
 
     const { data: sessionData } = await supabase.auth.getSession();
-    const currentUserId = sessionData.session?.user.id;
+    const session = sessionData.session;
+    const currentUserId = session?.user.id;
 
     if (!currentUserId) {
       setStatus("Inicia sesion y crea tu perfil para participar en canto.");
@@ -160,20 +162,28 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
       return;
     }
 
-    const { error } = await supabase.from("contest_registrations").insert({
-      contest_slug: singingContestSlug,
-      user_id: currentUserId,
+    const response = await fetch("/api/contest-registrations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ contestSlug: singingContestSlug }),
     });
 
-    if (error && error.code !== "23505") {
-      setStatus(error.message);
+    const result = (await response.json()) as {
+      error?: string;
+      participantIds?: string[];
+    };
+
+    if (!response.ok) {
+      setStatus(result.error ?? "No se pudo registrar tu perfil en canto.");
       return;
     }
 
     setUserId(currentUserId);
-    setParticipantIds((current) =>
-      current.includes(currentUserId) ? current : [...current, currentUserId],
-    );
+    setParticipantIds(result.participantIds ?? participantIds);
+    setParticipantsRefreshKey((current) => current + 1);
     setStatus("Tu perfil artistico fue agregado a participantes de canto.");
   }
 

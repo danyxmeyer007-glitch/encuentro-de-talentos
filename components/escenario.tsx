@@ -99,6 +99,8 @@ const reactionSounds: Record<string, string> = {
 export default function Escenario() {
   const roomRef = useRef<Room | null>(null);
   const mediaContainerRef = useRef<HTMLDivElement | null>(null);
+  const localPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
   const supabase = useMemo(
     () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
     [],
@@ -150,9 +152,48 @@ export default function Escenario() {
 
   useEffect(() => {
     return () => {
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
       roomRef.current?.disconnect();
     };
   }, []);
+
+  async function requestStageMedia() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setLiveKitStatus("Este navegador no permite activar microfono/camara.");
+      return false;
+    }
+
+    try {
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: cameraEnabledForTurn,
+      });
+
+      localStreamRef.current = stream;
+
+      if (localPreviewRef.current) {
+        localPreviewRef.current.srcObject = stream;
+        await localPreviewRef.current.play().catch(() => undefined);
+      }
+
+      setLiveKitStatus(
+        cameraEnabledForTurn
+          ? "Permisos activos: microfono/camara listos"
+          : "Permiso activo: microfono listo",
+      );
+
+      return true;
+    } catch (error) {
+      setLiveKitStatus(
+        error instanceof Error
+          ? `Autoriza microfono/camara en el navegador: ${error.message}`
+          : "Autoriza microfono/camara en el navegador",
+      );
+
+      return false;
+    }
+  }
 
   useEffect(() => {
     if (!supabase) {
@@ -182,8 +223,11 @@ export default function Escenario() {
         return;
       }
 
-      setCurrentUserId(sessionData.session?.user.id ?? null);
-      setRoomOpen(roomResult.data?.status === "live");
+      const sessionUserId = sessionData.session?.user.id ?? null;
+      const roomIsOpen = roomResult.data?.status === "live";
+
+      setCurrentUserId(sessionUserId);
+      setRoomOpen(roomIsOpen);
 
       if (registrationsResult.error) {
         setQueueStatus("No se pudo cargar la fila del concurso");
@@ -224,24 +268,33 @@ export default function Escenario() {
       );
       const colors = ["#22d3ee", "#ec4899", "#facc15", "#a78bfa", "#34d399"];
 
-      setContestQueue(
-        registrations.map((registration, index) => {
-          const profile = profilesByUser.get(registration.user_id);
-          const performerProfile = performersByUser.get(registration.user_id);
+      const nextQueue = registrations.map((registration, index) => {
+        const profile = profilesByUser.get(registration.user_id);
+        const performerProfile = performersByUser.get(registration.user_id);
 
-          return {
-            userId: registration.user_id,
-            name:
-              performerProfile?.stage_name ||
-              (profile?.username ? `@${profile.username}` : `Participante ${index + 1}`),
-            role: "En fila",
-            song: performerProfile?.genre || "Audicion de canto",
-            color: colors[index % colors.length],
-            city: profile?.city,
-            country: profile?.country,
-          };
-        }),
-      );
+        return {
+          userId: registration.user_id,
+          name:
+            performerProfile?.stage_name ||
+            (profile?.username ? `@${profile.username}` : `Participante ${index + 1}`),
+          role: "En fila",
+          song: performerProfile?.genre || "Audicion de canto",
+          color: colors[index % colors.length],
+          city: profile?.city,
+          country: profile?.country,
+        };
+      });
+
+      setContestQueue(nextQueue);
+
+      if (!roomIsOpen && sessionUserId) {
+        const userQueueIndex = nextQueue.findIndex((item) => item.userId === sessionUserId);
+
+        if (userQueueIndex >= 0) {
+          setActivePerformer(userQueueIndex);
+        }
+      }
+
       setQueueStatus("Fila oficial de participantes cargada");
     }
 
@@ -257,7 +310,7 @@ export default function Escenario() {
       isActive = false;
       subscription.unsubscribe();
     };
-  }, [activePerformer, supabase]);
+  }, [supabase]);
 
   function createAudioContext() {
     const AudioContextClass =
@@ -587,6 +640,12 @@ export default function Escenario() {
       return;
     }
 
+    const mediaAllowed = await requestStageMedia();
+
+    if (!mediaAllowed) {
+      return;
+    }
+
     const headers: HeadersInit = {
       "Content-Type": "application/json",
     };
@@ -659,6 +718,12 @@ export default function Escenario() {
   }
 
   async function handleStartPublishing() {
+    const mediaAllowed = await requestStageMedia();
+
+    if (!mediaAllowed) {
+      return;
+    }
+
     if (!roomRef.current || connectedRole !== "performer") {
       if (!canModerateStage) {
         setLiveKitStatus("Conecta como participante en turno");
@@ -706,6 +771,13 @@ export default function Escenario() {
 
     await roomRef.current.localParticipant.setCameraEnabled(false);
     await roomRef.current.localParticipant.setMicrophoneEnabled(false);
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+
+    if (localPreviewRef.current) {
+      localPreviewRef.current.srcObject = null;
+    }
+
     setPublishing(false);
     setLiveKitStatus("Audio/video detenido");
   }
@@ -744,6 +816,13 @@ export default function Escenario() {
     mediaContainerRef.current
       ?.querySelectorAll("[data-livekit-track]")
       .forEach((element) => element.remove());
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+
+    if (localPreviewRef.current) {
+      localPreviewRef.current.srcObject = null;
+    }
+
     setConnectedRole(null);
     setPublishing(false);
     setLiveKitParticipants(0);
@@ -846,6 +925,13 @@ export default function Escenario() {
           </div>
 
           <div className="stage-camera-frame">
+            <video
+              ref={localPreviewRef}
+              className="local-preview"
+              autoPlay
+              muted
+              playsInline
+            />
             <div ref={mediaContainerRef} className="livekit-media" aria-live="polite" />
           </div>
 
@@ -927,10 +1013,21 @@ export default function Escenario() {
               >
                 Entrar a mi turno
               </button>
-            ) : null}
+            ) : (
+              <a
+                className="publish-button"
+                href="/concursos"
+              >
+                Registrarme en concursos
+              </a>
+            )}
             <div className="stream-state">
               <span>{queueStatus}</span>
-              <span>{currentUserRegistered ? "Registrado en canto" : "Registrate en concursos para participar"}</span>
+              <span>
+                {currentUserRegistered
+                  ? "Registrado en canto"
+                  : "Necesitas estar registrado en canto para abrir live"}
+              </span>
               <span>{connectedRole === "performer" ? "Conectado a LiveKit" : "Sin conexion performer"}</span>
               <span>{micPassed ? "Microfono activo" : "Listo para turno"}</span>
               <span>{muted ? "Silenciado por host" : "Canal listo"}</span>
@@ -1444,6 +1541,8 @@ export default function Escenario() {
         }
 
         .stage-camera-frame {
+          display: grid;
+          gap: 0.65rem;
           width: min(620px, 100%);
           justify-self: center;
           border: 1px solid rgba(250, 204, 21, 0.22);
@@ -1455,6 +1554,17 @@ export default function Escenario() {
           box-shadow:
             0 0 34px rgba(34, 211, 238, 0.13),
             0 0 42px rgba(250, 204, 21, 0.11);
+        }
+
+        .local-preview {
+          display: block;
+          width: 100%;
+          min-height: 190px;
+          max-height: 340px;
+          border: 1px solid rgba(103, 232, 249, 0.2);
+          border-radius: 8px;
+          background: #020617;
+          object-fit: cover;
         }
 
         .song-now span {
@@ -1631,6 +1741,9 @@ export default function Escenario() {
         .vote-button,
         .publish-button,
         .livekit-actions button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           min-height: 42px;
           border: 1px solid rgba(255, 255, 255, 0.16);
           border-radius: 999px;
@@ -1641,6 +1754,8 @@ export default function Escenario() {
           font-weight: 1000;
           letter-spacing: 0.08em;
           padding: 0.65rem 0.82rem;
+          text-align: center;
+          text-decoration: none;
           text-transform: uppercase;
           transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
         }
@@ -1799,7 +1914,7 @@ export default function Escenario() {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
           gap: 0.8rem;
-          min-height: 190px;
+          min-height: 68px;
           border: 1px dashed rgba(103, 232, 249, 0.24);
           border-radius: 8px;
           padding: 0.75rem;
@@ -1807,7 +1922,7 @@ export default function Escenario() {
         }
 
         .livekit-media:empty::before {
-          content: "Aqui aparecen audio/video remotos cuando alguien publica.";
+          content: "LiveKit remoto aparecera aqui al publicar.";
           color: #bae6fd;
           font-size: 0.84rem;
           font-weight: 800;
