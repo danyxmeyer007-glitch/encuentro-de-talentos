@@ -295,6 +295,26 @@ function getPublicSiteUrl() {
   return "";
 }
 
+function getEmailRedirectTo() {
+  const siteUrl = getPublicSiteUrl();
+
+  return siteUrl ? `${siteUrl}/registro?verified=1` : undefined;
+}
+
+function isAlreadyRegisteredError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return (
+    message.includes("already registered") ||
+    message.includes("already been registered") ||
+    message.includes("user already registered")
+  );
+}
+
 export default function SignupSection({
   mode = "registro",
 }: {
@@ -323,6 +343,7 @@ export default function SignupSection({
   const [messageBody, setMessageBody] = useState("");
   const [status, setStatus] = useState("");
   const [verificationNotice, setVerificationNotice] = useState("");
+  const [showExistingEmailActions, setShowExistingEmailActions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const isCamerinoPage = mode === "camerino";
@@ -615,6 +636,7 @@ export default function SignupSection({
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("");
+    setShowExistingEmailActions(false);
     setIsSaving(true);
 
     try {
@@ -624,10 +646,7 @@ export default function SignupSection({
         throw new Error("Falta configurar Supabase para registrar usuarios.");
       }
 
-      const siteUrl = getPublicSiteUrl();
-      const emailRedirectTo = siteUrl
-        ? `${siteUrl}/registro?verified=1`
-        : undefined;
+      const emailRedirectTo = getEmailRedirectTo();
       const auth =
         authModeForRequest === "signup"
           ? await supabase.auth.signUp({
@@ -680,10 +699,52 @@ export default function SignupSection({
         window.location.assign("/camerino");
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo registrar.");
+      if (isAlreadyRegisteredError(error)) {
+        setShowExistingEmailActions(true);
+        setStatus(
+          "Ese correo ya existe en Supabase. Puede ser un registro pendiente de verificacion; revisa tu correo o reenvia el enlace.",
+        );
+      } else {
+        setStatus(error instanceof Error ? error.message : "No se pudo registrar.");
+      }
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function resendVerificationEmail() {
+    if (!supabase) {
+      setStatus("Falta configurar Supabase para reenviar el correo.");
+      return;
+    }
+
+    if (!email.trim()) {
+      setStatus("Escribe tu correo para reenviar la verificacion.");
+      return;
+    }
+
+    setIsSaving(true);
+    setStatus("");
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+      options: {
+        emailRedirectTo: getEmailRedirectTo(),
+      },
+    });
+
+    setIsSaving(false);
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    setVerificationNotice(
+      "Te reenviamos el correo de verificacion. Abre el enlace para activar tu camerino.",
+    );
+    setStatus("Revisa inbox, spam o promociones.");
   }
 
   async function saveProfile(
@@ -1037,7 +1098,10 @@ export default function SignupSection({
                   placeholder="Correo electronico"
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setShowExistingEmailActions(false);
+                  }}
                   required
                 />
                 <input
@@ -1161,6 +1225,30 @@ export default function SignupSection({
             <p className="mt-4 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-bold text-cyan-100">
               {displayedStatus}
             </p>
+          ) : null}
+
+          {!session && showExistingEmailActions ? (
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                className="secondary-button px-5 py-3"
+                disabled={isSaving}
+                type="button"
+                onClick={resendVerificationEmail}
+              >
+                Reenviar verificacion
+              </button>
+              <button
+                className="secondary-button px-5 py-3"
+                disabled={isSaving}
+                type="button"
+                onClick={() => {
+                  setAuthMode("signin");
+                  setStatus("Prueba entrar con ese correo y tu contrasena.");
+                }}
+              >
+                Entrar con este correo
+              </button>
+            </div>
           ) : null}
         </div>
       </div>
