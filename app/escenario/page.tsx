@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import Escenario from "@/components/escenario";
+import AppOnlyEscenario from "@/components/AppOnlyEscenario";
 
 export const metadata: Metadata = {
-  title: "Proximamente Voces Debut | Encuentro de Talentos",
+  title: "Download App | Escenario Live ET",
   description:
-    "Julio 15: escenario live de Encuentro de Talentos con performers y listeners en vivo.",
+    "Instala la app Encuentro de Talentos para entrar al escenario live.",
   alternates: {
     canonical: "/escenario",
   },
 };
 
 export default function EscenarioPage() {
-  return <Escenario />;
+  return <AppOnlyEscenario />;
 }

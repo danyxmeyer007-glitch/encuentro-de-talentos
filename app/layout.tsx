@@ -6,9 +6,11 @@ import Navbar from "@/components/Navbar";
 import ConditionalFooter from "@/components/ConditionalFooter";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://encuentro-de-talentos.vercel.app"),
+  metadataBase: new URL("https://encuentrodetalentos.com"),
+  applicationName: "Encuentro de Talentos",
   title: "Encuentro de Talentos",
   description: "Diviértete. Participa. Gana premios.",
+  manifest: "/manifest.webmanifest",
   alternates: {
     canonical: "/",
     languages: {
@@ -25,6 +27,22 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ET Talentos",
+  },
+  icons: {
+    icon: [
+      { url: "/app-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/app-icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "msapplication-TileColor": "#06172f",
+  },
 };
 
 export default function RootLayout({
@@ -36,6 +54,7 @@ export default function RootLayout({
     <html lang="es-MX" dir="ltr" translate="yes">
       <head>
         <meta httpEquiv="Content-Language" content="es-MX" />
+        <meta name="theme-color" content="#06172f" />
       </head>
       <body>
         <BackgroundVideo />
