@@ -168,7 +168,8 @@ const birthDays = Array.from({ length: 31 }, (_item, index) =>
   String(index + 1).padStart(2, "0"),
 );
 const pendingProfileStorageKey = "encuentro_pending_profile";
-const maxProfilePhotoSize = 2 * 1024 * 1024;
+const maxProfilePhotoSize = 3 * 1024 * 1024;
+const maxProfilePhotoSizeMb = maxProfilePhotoSize / 1024 / 1024;
 
 function normalizeUsername(value: string) {
   return value
@@ -285,7 +286,6 @@ function validateRequiredProfileFields(form: ProfileForm, hasProfilePhoto: boole
   const dateOfBirth = getDateOfBirth(form);
 
   if (!form.name.trim()) return "Agrega tu nombre completo.";
-  if (!form.stage_name.trim()) return "Agrega tu nombre artistico.";
   if (!form.country.trim()) return "Selecciona tu pais.";
   if (!form.city.trim()) return "Agrega tu ciudad.";
   if (!dateOfBirth) return "Agrega tu fecha de nacimiento completa y valida.";
@@ -379,6 +379,8 @@ export default function SignupSection({
   const [showExistingEmailActions, setShowExistingEmailActions] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isEditingCamerino, setIsEditingCamerino] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const isCamerinoPage = mode === "camerino";
 
   const userId = session?.user.id ?? "";
@@ -538,6 +540,7 @@ export default function SignupSection({
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
       const verified = url.searchParams.get("verified");
+      const resetPassword = url.searchParams.get("reset_password");
       const errorDescription =
         url.searchParams.get("error_description") ||
         url.searchParams.get("error");
@@ -560,9 +563,14 @@ export default function SignupSection({
 
         if (nextSession) {
           setSession(nextSession);
-          setVerificationNotice(
-            "Gracias por verificar tu correo. Ya puedes terminar tu perfil y entrar a tu camerino.",
-          );
+          if (resetPassword) {
+            setIsResettingPassword(true);
+            setVerificationNotice("Escribe una contraseña nueva para terminar.");
+          } else {
+            setVerificationNotice(
+              "Gracias por verificar tu correo. Ya puedes terminar tu perfil y entrar a tu camerino.",
+            );
+          }
           const pendingProfile = window.localStorage.getItem(
             pendingProfileStorageKey,
           );
@@ -708,7 +716,7 @@ export default function SignupSection({
     const nextFile = event.target.files?.[0] ?? null;
 
     if (nextFile && nextFile.size > maxProfilePhotoSize) {
-      setStatus("La foto debe pesar 2 MB o menos por ahora.");
+      setStatus(`La foto debe pesar ${maxProfilePhotoSizeMb} MB o menos por ahora.`);
       event.target.value = "";
       setPhotoFile(null);
       return;
@@ -878,6 +886,64 @@ export default function SignupSection({
     setStatus("Revisa inbox, spam o promociones.");
   }
 
+  async function sendPasswordResetEmail() {
+    if (!supabase) {
+      setStatus("Falta configurar Supabase para recuperar contraseña.");
+      return;
+    }
+
+    if (!email.trim()) {
+      setStatus("Escribe tu correo para enviarte el enlace de recuperación.");
+      return;
+    }
+
+    setIsSaving(true);
+    setStatus("");
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${getPublicSiteUrl()}/camerino?reset_password=1`,
+    });
+
+    setIsSaving(false);
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    setStatus("Te enviamos un enlace para cambiar tu contraseña.");
+  }
+
+  async function updatePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!supabase) {
+      setStatus("Falta configurar Supabase para actualizar contraseña.");
+      return;
+    }
+
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      setStatus("Usa minimo 8 caracteres con letras y numeros.");
+      return;
+    }
+
+    setIsSaving(true);
+    setStatus("");
+
+    const { error } = await supabase.auth.updateUser({ password });
+
+    setIsSaving(false);
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    setPassword("");
+    setIsResettingPassword(false);
+    setStatus("Contraseña actualizada. Ya puedes usar tu camerino.");
+  }
+
   async function saveProfile(
     currentUserId = userId,
     currentEmail = email,
@@ -965,6 +1031,7 @@ export default function SignupSection({
       photo_url: photoUrl,
     }));
     await loadCamerino(currentUserId);
+    setIsEditingCamerino(false);
   }
 
   async function handleProfileSave(event: FormEvent<HTMLFormElement>) {
@@ -1136,6 +1203,8 @@ export default function SignupSection({
     setRole("audience");
     setVerificationNotice("");
     setIsEditingProfile(false);
+    setIsEditingCamerino(false);
+    setIsResettingPassword(false);
     setStatus("Sesion cerrada.");
   }
 
@@ -1281,9 +1350,45 @@ export default function SignupSection({
                     ? "Crear mi perfil"
                     : "Entrar a mi camerino"}
               </button>
+              {(authMode === "signin" || isCamerinoPage) ? (
+                <button
+                  className="mt-4 w-full rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black uppercase tracking-[0.12em] text-cyan-100 transition hover:border-cyan-200/45"
+                  disabled={isSaving}
+                  type="button"
+                  onClick={sendPasswordResetEmail}
+                >
+                  Olvidé mi contraseña
+                </button>
+              ) : null}
             </form>
           ) : (
             <div className="grid gap-8">
+              {isResettingPassword ? (
+                <form
+                  className="rounded-[24px] border border-cyan-300/22 bg-cyan-300/10 p-5"
+                  onSubmit={updatePassword}
+                >
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
+                    Recuperar contraseña
+                  </p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+                    <input
+                      className="input"
+                      minLength={8}
+                      pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}"
+                      placeholder="Nueva contraseña"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                    />
+                    <button className="gold-button-small" disabled={isSaving}>
+                      {isSaving ? "Guardando..." : "Guardar contraseña"}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">
@@ -1293,8 +1398,17 @@ export default function SignupSection({
                     {myProfile?.stage_name || myProfile?.name || "Tu camerino"}
                   </h2>
                 </div>
-                {!isCamerinoPage ? (
                 <div className="flex flex-wrap gap-2">
+                  {isCamerinoPage ? (
+                    <button
+                      className="secondary-button px-5 py-3"
+                      type="button"
+                      onClick={() => setIsEditingCamerino((current) => !current)}
+                    >
+                      {isEditingCamerino ? "Cerrar edición" : "Editar camerino"}
+                    </button>
+                  ) : null}
+                  {!isCamerinoPage ? (
                   <button
                     className="secondary-button px-5 py-3"
                     type="button"
@@ -1302,17 +1416,18 @@ export default function SignupSection({
                   >
                     {isEditingProfile ? "Cerrar edición" : "Editar mi perfil"}
                   </button>
+                  ) : null}
                   <button className="secondary-button px-5 py-3" onClick={signOut}>
                     Salir
                   </button>
                 </div>
-                ) : null}
               </div>
 
               <CamerinoProfile
                 addSample={addSample}
                 deleteSample={deleteSample}
                 form={form}
+                isEditing={isEditingCamerino || !isCamerinoPage}
                 isSaving={isSaving}
                 onPhotoChange={handlePhotoChange}
                 onSave={handleCamerinoSave}
@@ -1450,13 +1565,6 @@ function ProfileEditor({
           onChange={(event) => updateForm("name", event.target.value)}
           required
         />
-        <input
-          className="input"
-          placeholder="Nombre artistico"
-          value={form.stage_name}
-          onChange={(event) => updateForm("stage_name", event.target.value)}
-          required
-        />
         <select
           className="input"
           value={form.country}
@@ -1566,7 +1674,7 @@ function ProfileEditor({
             ? photoFile.name
             : form.photo_url
               ? "Foto actual guardada"
-              : "Sube una imagen desde tu computadora o movil. Máximo 2 MB."}
+              : `Sube una imagen desde tu computadora o movil. Máximo ${maxProfilePhotoSizeMb} MB.`}
         </span>
       </label>
 

@@ -1,5 +1,5 @@
 update storage.buckets
-set file_size_limit = 2097152
+set file_size_limit = 3145728
 where id = 'profile-photos';
 
 create table if not exists public.contest_registrations (

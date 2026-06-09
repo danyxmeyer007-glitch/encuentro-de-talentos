@@ -28,6 +28,7 @@ type CamerinoProfileProps = {
   addSample: (event: FormEvent<HTMLFormElement>) => void;
   deleteSample: (sampleId: string) => void;
   form: CamerinoForm;
+  isEditing: boolean;
   isSaving: boolean;
   onPhotoChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
@@ -95,6 +96,7 @@ export default function CamerinoProfile({
   addSample,
   deleteSample,
   form,
+  isEditing,
   isSaving,
   onPhotoChange,
   onSave,
@@ -174,72 +176,79 @@ export default function CamerinoProfile({
                 "Este camerino esta listo para presentar canciones, demos, fotos, videos y momentos favoritos."}
             </p>
 
-            <form
-              className="grid gap-3 rounded-[22px] border border-white/14 bg-black/24 p-4"
-              onSubmit={onSave}
-            >
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="grid gap-2">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
-                    Nombre real
-                  </span>
-                  <span className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/52">
-                    {form.name || "Guardado en tu perfil"}
-                  </span>
-                </label>
-                <label className="grid gap-2">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
-                    Nombre artístico
-                  </span>
-                  <input
-                    className="input"
-                    placeholder="Tu nombre de escenario"
-                    value={form.stage_name}
-                    onChange={(event) => updateForm("stage_name", event.target.value)}
-                  />
-                </label>
-              </div>
+            {isEditing ? (
+              <form
+                className="grid gap-3 rounded-[22px] border border-white/14 bg-black/24 p-4"
+                onSubmit={onSave}
+              >
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
+                      Nombre real
+                    </span>
+                    <span className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/52">
+                      {form.name || "Guardado en tu perfil"}
+                    </span>
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
+                      Nombre artístico
+                    </span>
+                    <input
+                      className="input"
+                      placeholder="Tu nombre de escenario"
+                      value={form.stage_name}
+                      onChange={(event) =>
+                        updateForm("stage_name", event.target.value)
+                      }
+                    />
+                  </label>
+                </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <label className="grid gap-2">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
-                    Foto
-                  </span>
-                  <input
-                    accept="image/*"
-                    className="input"
-                    disabled={isSaving}
-                    type="file"
-                    onChange={onPhotoChange}
-                  />
-                  <span className="text-xs font-bold text-white/45">
-                    {photoFile ? photoFile.name : "Máximo 2 MB"}
-                  </span>
-                </label>
-                <label className="grid gap-2">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
-                    Color del camerino
-                  </span>
-                  <select
-                    className="input"
-                    value={form.camerino_theme}
-                    onChange={(event) =>
-                      updateForm("camerino_theme", event.target.value)
-                    }
-                  >
-                    {themeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
+                      Foto
+                    </span>
+                    <input
+                      accept="image/*"
+                      className="input"
+                      disabled={isSaving}
+                      type="file"
+                      onChange={onPhotoChange}
+                    />
+                    <span className="text-xs font-bold text-white/45">
+                      {photoFile ? photoFile.name : "Máximo 3 MB"}
+                    </span>
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
+                      Color del camerino
+                    </span>
+                    <select
+                      className="input"
+                      value={form.camerino_theme}
+                      onChange={(event) =>
+                        updateForm("camerino_theme", event.target.value)
+                      }
+                    >
+                      {themeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
-              <button className="gold-button-small justify-self-start" disabled={isSaving}>
-                {isSaving ? "Guardando..." : "Guardar camerino"}
-              </button>
-            </form>
+                <button
+                  className="gold-button-small justify-self-start"
+                  disabled={isSaving}
+                >
+                  {isSaving ? "Guardando..." : "Guardar camerino"}
+                </button>
+              </form>
+            ) : null}
           </div>
         </div>
       </div>

@@ -83,7 +83,12 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
   const [userId, setUserId] = useState("");
   const [participantIds, setParticipantIds] = useState<string[]>([]);
   const [participantProfiles, setParticipantProfiles] = useState<
-    Array<{ user_id: string; username: string; photo_url: string | null }>
+    Array<{
+      user_id: string;
+      name: string | null;
+      username: string;
+      photo_url: string | null;
+    }>
   >([]);
   const [performers, setPerformers] = useState<
     Array<{ user_id: string; stage_name: string | null; genre: string | null }>
@@ -124,7 +129,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
       const [profilesResponse, performersResponse] = await Promise.all([
         client
           .from("profiles")
-          .select("user_id, username, photo_url")
+          .select("user_id, name, username, photo_url")
           .in("user_id", ids),
         client
           .from("performer_profiles")
@@ -290,7 +295,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
                 participantProfiles.map((profile) => {
                   const performer = performerByUser.get(profile.user_id);
                   const displayName =
-                    performer?.stage_name || `@${profile.username}`;
+                    performer?.stage_name || profile.name || `@${profile.username}`;
 
                   return (
                     <article

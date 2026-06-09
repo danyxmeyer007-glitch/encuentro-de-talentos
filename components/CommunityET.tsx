@@ -8,6 +8,7 @@ import {
 
 type Profile = {
   user_id: string;
+  name: string | null;
   username: string;
   photo_url: string | null;
   country: string | null;
@@ -61,7 +62,7 @@ export default function CommunityET() {
         await Promise.all([
           client
             .from("profiles")
-            .select("user_id, username, photo_url, country, city, bio, talent_type")
+            .select("user_id, name, username, photo_url, country, city, bio, talent_type")
             .order("created_at", { ascending: false }),
           client.from("performer_profiles").select("user_id, stage_name, genre"),
           client
@@ -131,7 +132,11 @@ export default function CommunityET() {
   }
 
   function getDisplayName(profile: Profile) {
-    return performerByUser.get(profile.user_id)?.stage_name || `@${profile.username}`;
+    return (
+      performerByUser.get(profile.user_id)?.stage_name ||
+      profile.name ||
+      `@${profile.username}`
+    );
   }
 
   function getSubline(profile: Profile) {
