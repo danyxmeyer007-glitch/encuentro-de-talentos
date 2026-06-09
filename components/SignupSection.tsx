@@ -329,6 +329,19 @@ function getEmailRedirectTo() {
   return siteUrl ? `${siteUrl}/registro?verified=1` : undefined;
 }
 
+function getOAuthRedirectTo() {
+  if (
+    typeof navigator !== "undefined" &&
+    navigator.userAgent.includes("EncuentroTalentosAndroid")
+  ) {
+    return "encuentrodetalentos://auth/callback";
+  }
+
+  const siteUrl = getPublicSiteUrl();
+
+  return siteUrl ? `${siteUrl}/camerino` : undefined;
+}
+
 function isAlreadyRegisteredError(error: unknown) {
   if (!(error instanceof Error)) {
     return false;
@@ -917,6 +930,33 @@ export default function SignupSection({
     }
   }
 
+  async function signInWithGoogle() {
+    if (!supabase) {
+      setStatus("Falta configurar Supabase para entrar con Google.");
+      return;
+    }
+
+    setIsSaving(true);
+    setStatus("");
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: getOAuthRedirectTo(),
+        queryParams: {
+          access_type: "offline",
+          prompt: "select_account",
+        },
+      },
+    });
+
+    setIsSaving(false);
+
+    if (error) {
+      setStatus(error.message);
+    }
+  }
+
   async function resendVerificationEmail() {
     if (!supabase) {
       setStatus("Falta configurar Supabase para reenviar el correo.");
@@ -1338,6 +1378,24 @@ export default function SignupSection({
                   </button>
                 </div>
               )}
+
+              <button
+                className="mb-5 flex w-full items-center justify-center gap-3 rounded-full border border-white/20 bg-white px-5 py-3 text-sm font-black uppercase tracking-[0.12em] text-slate-950 shadow-[0_0_24px_rgba(255,255,255,0.12)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isSaving}
+                type="button"
+                onClick={signInWithGoogle}
+              >
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-base normal-case tracking-normal">
+                  G
+                </span>
+                Continuar con Google
+              </button>
+
+              <div className="mb-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs font-black uppercase tracking-[0.16em] text-white/45">
+                <span className="h-px bg-white/12" />
+                <span>o usa correo</span>
+                <span className="h-px bg-white/12" />
+              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <input

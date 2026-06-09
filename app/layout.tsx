@@ -4,6 +4,7 @@ import "./globals.css";
 import BackgroundVideo from "@/components/BackgroundVideo";
 import Navbar from "@/components/Navbar";
 import ConditionalFooter from "@/components/ConditionalFooter";
+import AppSessionGate from "@/components/AppSessionGate";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://encuentrodetalentos.com"),
@@ -59,6 +60,7 @@ export default function RootLayout({
       <body>
         <BackgroundVideo />
         <Navbar />
+        <AppSessionGate />
         {children}
         <ConditionalFooter />
         <Analytics />

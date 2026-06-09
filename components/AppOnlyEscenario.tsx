@@ -13,6 +13,11 @@ type StandaloneNavigator = Navigator & {
   standalone?: boolean;
 };
 
+const androidPackageUrl =
+  process.env.NEXT_PUBLIC_ANDROID_PACKAGE_URL ||
+  "/downloads/encuentro-de-talentos.apk";
+const iosPackageUrl = process.env.NEXT_PUBLIC_IOS_PACKAGE_URL || "#ios-install";
+
 function isStandaloneApp() {
   if (typeof window === "undefined") {
     return false;
@@ -21,6 +26,7 @@ function isStandaloneApp() {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
     window.matchMedia("(display-mode: fullscreen)").matches ||
+    window.navigator.userAgent.includes("EncuentroTalentosAndroid") ||
     (window.navigator as StandaloneNavigator).standalone === true
   );
 }
@@ -54,6 +60,11 @@ export default function AppOnlyEscenario() {
   }, []);
 
   async function installApp() {
+    if (androidPackageUrl) {
+      window.location.href = androidPackageUrl;
+      return;
+    }
+
     if (!installPrompt) {
       return;
     }
@@ -94,14 +105,15 @@ export default function AppOnlyEscenario() {
             ) : (
               <a
                 className="rounded-full border border-white/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.32),transparent_46%),linear-gradient(90deg,#22d3ee,#ec4899,#facc15)] px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-white no-underline shadow-[0_0_34px_rgba(34,211,238,0.3),0_0_42px_rgba(250,204,21,0.22),inset_0_1px_0_rgba(255,255,255,0.45)] transition hover:scale-105"
-                href="/escenario"
+                href={androidPackageUrl}
+                download={androidPackageUrl.startsWith("/") ? true : undefined}
               >
                 Download Android
               </a>
             )}
             <a
               className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-cyan-100 no-underline transition hover:border-cyan-200/60 hover:bg-cyan-300/15"
-              href="#ios-install"
+              href={iosPackageUrl}
             >
               Download iOS
             </a>
