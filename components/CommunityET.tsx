@@ -36,6 +36,9 @@ type FriendRequest = {
 };
 
 const contestSlug = "voz-piloto-2026";
+const communityProfileLimit = 60;
+const contestProfileLimit = 10;
+const friendRequestLimit = 500;
 
 export default function CommunityET() {
   const supabase = useMemo(
@@ -58,32 +61,84 @@ export default function CommunityET() {
       const currentUserId = sessionData.session?.user.id ?? "";
       setUserId(currentUserId);
 
-      const [profilesResponse, performersResponse, registrationsResponse] =
-        await Promise.all([
-          client
-            .from("profiles")
-            .select("user_id, name, username, photo_url, country, city, bio, talent_type")
-            .order("created_at", { ascending: false }),
-          client.from("performer_profiles").select("user_id, stage_name, genre"),
-          client
-            .from("contest_registrations")
-            .select("user_id, contest_slug")
-            .eq("contest_slug", contestSlug),
-        ]);
+      const registrationsResponse = await client
+        .from("contest_registrations")
+        .select("user_id, contest_slug")
+        .eq("contest_slug", contestSlug)
+        .order("created_at", { ascending: true })
+        .limit(contestProfileLimit);
+
+      if (registrationsResponse.error) {
+        setStatus(registrationsResponse.error.message);
+        return;
+      }
+
+      const contestUserIds = (registrationsResponse.data ?? []).map(
+        (registration) => registration.user_id,
+      );
+
+      const profilesResponse = await client
+        .from("profiles")
+        .select("user_id, name, username, photo_url, country, city, bio, talent_type")
+        .order("created_at", { ascending: false })
+        .limit(communityProfileLimit);
 
       if (profilesResponse.error) {
         setStatus(profilesResponse.error.message);
         return;
       }
 
-      setProfiles((profilesResponse.data ?? []) as Profile[]);
+      const profileByUser = new Map(
+        ((profilesResponse.data ?? []) as Profile[]).map((profile) => [
+          profile.user_id,
+          profile,
+        ]),
+      );
+
+      const missingContestUserIds = contestUserIds.filter(
+        (contestUserId) => !profileByUser.has(contestUserId),
+      );
+
+      if (missingContestUserIds.length) {
+        const contestProfilesResponse = await client
+          .from("profiles")
+          .select("user_id, name, username, photo_url, country, city, bio, talent_type")
+          .in("user_id", missingContestUserIds);
+
+        if (contestProfilesResponse.error) {
+          setStatus(contestProfilesResponse.error.message);
+          return;
+        }
+
+        for (const profile of (contestProfilesResponse.data ?? []) as Profile[]) {
+          profileByUser.set(profile.user_id, profile);
+        }
+      }
+
+      const visibleProfiles = Array.from(profileByUser.values());
+      const visibleUserIds = visibleProfiles.map((profile) => profile.user_id);
+      const performersResponse = visibleUserIds.length
+        ? await client
+            .from("performer_profiles")
+            .select("user_id, stage_name, genre")
+            .in("user_id", visibleUserIds)
+        : { data: [], error: null };
+
+      if (performersResponse.error) {
+        setStatus(performersResponse.error.message);
+        return;
+      }
+
+      setProfiles(visibleProfiles);
       setPerformers((performersResponse.data ?? []) as Performer[]);
       setRegistrations((registrationsResponse.data ?? []) as Registration[]);
 
       if (currentUserId) {
         const { data } = await client
           .from("friend_requests")
-          .select("id, requester_id, addressee_id, status");
+          .select("id, requester_id, addressee_id, status")
+          .or(`requester_id.eq.${currentUserId},addressee_id.eq.${currentUserId}`)
+          .limit(friendRequestLimit);
 
         setRequests((data ?? []) as FriendRequest[]);
       }

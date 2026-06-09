@@ -170,6 +170,10 @@ const birthDays = Array.from({ length: 31 }, (_item, index) =>
 const pendingProfileStorageKey = "encuentro_pending_profile";
 const maxProfilePhotoSize = 3 * 1024 * 1024;
 const maxProfilePhotoSizeMb = maxProfilePhotoSize / 1024 / 1024;
+const camerinoDirectoryLimit = 80;
+const camerinoMessagesLimit = 100;
+const camerinoSamplesLimit = 40;
+const camerinoSocialRowsLimit = 1000;
 
 function normalizeUsername(value: string) {
   return value
@@ -407,43 +411,105 @@ export default function SignupSection({
       return;
     }
 
+    const [profilesResponse, currentProfileResponse, userResponse] =
+      await Promise.all([
+        supabase
+          .from("profiles")
+          .select(
+            "user_id, name, username, photo_url, country, city, date_of_birth, gender, bio, talent_type, age_range, camerino_theme",
+          )
+          .order("created_at", { ascending: false })
+          .limit(camerinoDirectoryLimit),
+        supabase
+          .from("profiles")
+          .select(
+            "user_id, name, username, photo_url, country, city, date_of_birth, gender, bio, talent_type, age_range, camerino_theme",
+          )
+          .eq("user_id", currentUserId)
+          .maybeSingle(),
+        supabase
+          .from("users")
+          .select("role")
+          .eq("id", currentUserId)
+          .maybeSingle(),
+      ]);
+
+    if (profilesResponse.error || currentProfileResponse.error) {
+      setStatus(
+        profilesResponse.error?.message ??
+          currentProfileResponse.error?.message ??
+          "No se pudo cargar el camerino.",
+      );
+      return;
+    }
+
+    const profileByUser = new Map(
+      (profilesResponse.data ?? []).map((profile) => [profile.user_id, profile]),
+    );
+
+    if (currentProfileResponse.data) {
+      profileByUser.set(currentUserId, currentProfileResponse.data);
+    }
+
+    const profileRows = Array.from(profileByUser.values());
+    const profileIds = profileRows.map((profile) => profile.user_id);
+
     const [
-      profilesResponse,
       performersResponse,
       followsResponse,
       requestsResponse,
       messagesResponse,
       samplesResponse,
-      userResponse,
     ] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select(
-          "user_id, name, username, photo_url, country, city, date_of_birth, gender, bio, talent_type, age_range, camerino_theme",
-        )
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("performer_profiles")
-        .select(
-          "user_id, stage_name, genre, experience_level, social_links, demo_video_url",
-        ),
-      supabase.from("follows").select("follower_id, following_id"),
+      profileIds.length
+        ? supabase
+            .from("performer_profiles")
+            .select(
+              "user_id, stage_name, genre, experience_level, social_links, demo_video_url",
+            )
+            .in("user_id", profileIds)
+        : Promise.resolve({ data: [], error: null }),
+      profileIds.length
+        ? supabase
+            .from("follows")
+            .select("follower_id, following_id")
+            .in("following_id", profileIds)
+            .limit(camerinoSocialRowsLimit)
+        : Promise.resolve({ data: [], error: null }),
       supabase
         .from("friend_requests")
-        .select("id, requester_id, addressee_id, status"),
+        .select("id, requester_id, addressee_id, status")
+        .or(`requester_id.eq.${currentUserId},addressee_id.eq.${currentUserId}`)
+        .limit(camerinoSocialRowsLimit),
       supabase
         .from("messages")
         .select("id, sender_id, receiver_id, body, created_at")
-        .order("created_at", { ascending: true }),
+        .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
+        .order("created_at", { ascending: false })
+        .limit(camerinoMessagesLimit),
       supabase
         .from("camerino_samples")
         .select("id, user_id, title, url, sample_type")
-        .order("created_at", { ascending: false }),
-      supabase.from("users").select("role").eq("id", currentUserId).maybeSingle(),
+        .eq("user_id", currentUserId)
+        .order("created_at", { ascending: false })
+        .limit(camerinoSamplesLimit),
     ]);
 
-    if (profilesResponse.error) {
-      setStatus(profilesResponse.error.message);
+    if (
+      performersResponse.error ||
+      followsResponse.error ||
+      requestsResponse.error ||
+      messagesResponse.error ||
+      samplesResponse.error
+    ) {
+      setStatus(
+        performersResponse.error?.message ||
+          followsResponse.error?.message ||
+          requestsResponse.error?.message ||
+          messagesResponse.error?.message ||
+          samplesResponse.error?.message ||
+          "No se pudo cargar el camerino.",
+      );
       return;
     }
 
@@ -456,7 +522,7 @@ export default function SignupSection({
     const follows = followsResponse.data ?? [];
     const friendRequests = (requestsResponse.data ?? []) as FriendRequest[];
 
-    const nextDirectory: DirectoryProfile[] = (profilesResponse.data ?? []).map((profile) => {
+    const nextDirectory: DirectoryProfile[] = profileRows.map((profile) => {
       const performer = performerByUser.get(profile.user_id);
       const request = friendRequests.find(
         (item) =>
@@ -494,7 +560,7 @@ export default function SignupSection({
 
     setDirectory(nextDirectory);
     setRequests(friendRequests);
-    setMessages((messagesResponse.data ?? []) as Message[]);
+    setMessages([...(messagesResponse.data ?? [])].reverse() as Message[]);
     setSamples((samplesResponse.data ?? []) as CamerinoSample[]);
     setRole(userResponse.data?.role === "audience" ? "audience" : "performer");
 

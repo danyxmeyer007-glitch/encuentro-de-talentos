@@ -211,7 +211,8 @@ export default function Escenario() {
             .from("contest_registrations")
             .select("user_id, created_at")
             .eq("contest_slug", contestSlug)
-            .order("created_at", { ascending: true }),
+            .order("created_at", { ascending: true })
+            .limit(maxVoiceParticipants),
           client
             .from("live_rooms")
             .select("status")
@@ -235,7 +236,7 @@ export default function Escenario() {
         return;
       }
 
-      const registrations = (registrationsResult.data ?? []).slice(0, maxVoiceParticipants);
+      const registrations = registrationsResult.data ?? [];
       const userIds = registrations.map((registration) => registration.user_id);
 
       if (userIds.length === 0) {

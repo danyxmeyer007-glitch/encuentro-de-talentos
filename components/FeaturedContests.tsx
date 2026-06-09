@@ -108,7 +108,8 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
         .from("contest_registrations")
         .select("user_id")
         .eq("contest_slug", singingContestSlug)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true })
+        .limit(maxVoiceParticipants);
 
       if (registrations.error) {
         setStatus(registrations.error.message);
