@@ -7,6 +7,8 @@ import {
   type RemoteParticipant,
   type RemoteTrack,
 } from "livekit-client";
+import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createSupabaseBrowserClient,
@@ -25,6 +27,7 @@ type StagePerformer = {
   role: string;
   song: string;
   color: string;
+  photoUrl?: string | null;
   city?: string | null;
   country?: string | null;
 };
@@ -144,6 +147,18 @@ export default function Escenario() {
   const hasNextPerformer = safeActivePerformer < stageQueue.length - 1;
   const isFinalModerator = currentUserRegistered && isMyTurn && !hasNextPerformer;
   const canModerateStage = currentUserRegistered && isMyTurn;
+  const curtainOpen = roomOpen && Boolean(performer?.userId);
+  const primaryStageLabel = !currentUserRegistered
+    ? "Registrarme en canto"
+    : !roomOpen && canModerateStage
+      ? "Abrir escenario"
+      : canPublishThisTurn
+        ? publishing
+          ? "Cantando en vivo"
+          : "Entrar a mi turno"
+        : connectedRole === "audience"
+          ? "Estas en audiencia"
+          : "Entrar como audiencia";
 
   const liveListeners = useMemo(
     () => listeners.length + 218 + (joined ? 1 : 0),
@@ -249,7 +264,7 @@ export default function Escenario() {
       const [profilesResult, performersResult] = await Promise.all([
         client
           .from("profiles")
-          .select("user_id, username, country, city")
+          .select("user_id, name, username, photo_url, country, city")
           .in("user_id", userIds),
         client
           .from("performer_profiles")
@@ -276,11 +291,13 @@ export default function Escenario() {
         return {
           userId: registration.user_id,
           name:
+            profile?.name ||
             performerProfile?.stage_name ||
             (profile?.username ? `@${profile.username}` : `Participante ${index + 1}`),
           role: "En fila",
           song: performerProfile?.genre || "Audicion de canto",
           color: colors[index % colors.length],
+          photoUrl: profile?.photo_url,
           city: profile?.city,
           country: profile?.country,
         };
@@ -454,14 +471,6 @@ export default function Escenario() {
 
   function handleJoin() {
     setJoined(true);
-  }
-
-  function handlePerformerChange(index: number) {
-    if (roomOpen) {
-      return;
-    }
-
-    setActivePerformer(index);
   }
 
   function handleReaction(reaction: string) {
@@ -711,7 +720,7 @@ export default function Escenario() {
     }
 
     await handleStopPublishing();
-    handleLiveKitDisconnect();
+    await handleLiveKitDisconnect();
     setRoomOpen(false);
     setMicPassed(false);
     pushRoomEvent("Live apagado por ultimo moderador");
@@ -811,7 +820,7 @@ export default function Escenario() {
     pushRoomEvent("Microfono pasado al siguiente participante");
   }
 
-  function handleLiveKitDisconnect() {
+  async function handleLiveKitDisconnect() {
     roomRef.current?.disconnect();
     roomRef.current = null;
     mediaContainerRef.current
@@ -829,6 +838,22 @@ export default function Escenario() {
     setLiveKitParticipants(0);
     setActiveSpeakers([]);
     pushRoomEvent("Saliste de LiveKit");
+  }
+
+  async function handlePrimaryStageAction() {
+    if (!roomOpen && canModerateStage) {
+      await handleOpenStage();
+
+      return;
+    }
+
+    if (canPublishThisTurn) {
+      await handleStartPublishing();
+
+      return;
+    }
+
+    await handleLiveKitConnect("audience");
   }
 
   return (
@@ -893,23 +918,41 @@ export default function Escenario() {
           <span />
         </div>
 
-        <div className="curtain curtain-left" aria-hidden="true" />
-        <div className="curtain curtain-right" aria-hidden="true" />
+        <div
+          className={`curtain curtain-left ${curtainOpen ? "is-open" : ""}`}
+          aria-hidden="true"
+        />
+        <div
+          className={`curtain curtain-right ${curtainOpen ? "is-open" : ""}`}
+          aria-hidden="true"
+        />
 
         <div className="main-stage">
           <div className="performer-row">
             {stageQueue.map((item, index) => (
-              <button
+              <div
                 key={item.userId ?? item.name}
-                type="button"
-                className={`performer ${activePerformer === index ? "is-active" : ""}`}
+                className={`performer ${activePerformer === index ? "is-active" : ""} ${
+                  item.userId === currentUserId ? "is-mine" : ""
+                }`}
                 style={{ "--performer-color": item.color } as React.CSSProperties}
-                onClick={() => handlePerformerChange(index)}
-                aria-pressed={activePerformer === index}
               >
                 <span className="performer-spotlight" />
                 <span className="performer-avatar">
-                  <span className="performer-head" />
+                  {item.photoUrl ? (
+                    <Image
+                      src={item.photoUrl}
+                      alt=""
+                      className="performer-photo"
+                      width={58}
+                      height={58}
+                      unoptimized
+                    />
+                  ) : (
+                    <span className="performer-head">
+                      {item.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
                   <span className="performer-body" />
                   <span className="performer-mic" />
                 </span>
@@ -921,7 +964,7 @@ export default function Escenario() {
                       : "En tu fila"
                     : item.role}
                 </small>
-              </button>
+              </div>
             ))}
           </div>
 
@@ -985,42 +1028,32 @@ export default function Escenario() {
             </div>
             <div className="queue-list" aria-label="Cola de participantes">
               {stageQueue.map((item, index) => (
-                <button
+                <div
                   key={item.userId ?? item.name}
-                  type="button"
                   className={activePerformer === index ? "is-active" : ""}
-                  onClick={() => handlePerformerChange(index)}
                 >
                   <span>{index + 1}</span>
                   <strong>{item.name}</strong>
                   <em>{item.userId === currentUserId ? "yo" : item.song}</em>
-                </button>
+                </div>
               ))}
             </div>
-            <button
-              type="button"
-              className="publish-button"
-              disabled={!canModerateStage || roomOpen}
-              onClick={handleOpenStage}
-            >
-              {roomOpen ? "Escenario live" : "Abrir escenario"}
-            </button>
-            {currentUserRegistered ? (
+            {!currentUserRegistered ? (
+              <Link className="publish-button" href="/concursos">
+                {primaryStageLabel}
+              </Link>
+            ) : (
               <button
                 type="button"
                 className="publish-button"
-                disabled={!canPublishThisTurn}
-                onClick={() => handleLiveKitConnect("performer")}
+                disabled={
+                  primaryStageLabel === "Cantando en vivo" ||
+                  primaryStageLabel === "Estas en audiencia"
+                }
+                onClick={handlePrimaryStageAction}
               >
-                Entrar a mi turno
+                {primaryStageLabel}
               </button>
-            ) : (
-              <a
-                className="publish-button"
-                href="/concursos"
-              >
-                Registrarme en concursos
-              </a>
             )}
             <div className="stream-state">
               <span>{queueStatus}</span>
@@ -1048,16 +1081,10 @@ export default function Escenario() {
             >
               Votar
             </button>
-            <button
-              type="button"
-              className="publish-button"
-              onClick={() => handleLiveKitConnect("audience")}
-            >
-              Entrar como audience
-            </button>
           </section>
         </div>
 
+        {canModerateStage || roomEvents.length ? (
         <section className="livekit-console" aria-label="LiveKit connection">
           <div className="ops-heading">
             <span>Sala LiveKit</span>
@@ -1100,9 +1127,6 @@ export default function Escenario() {
                 ) : null}
               </>
             ) : null}
-            <button type="button" onClick={handleLiveKitDisconnect} disabled={!connectedRole}>
-              Salir
-            </button>
           </div>
           <div className="event-feed" aria-label="Eventos de sala">
             {roomEvents.map((event, index) => (
@@ -1110,6 +1134,7 @@ export default function Escenario() {
             ))}
           </div>
         </section>
+        ) : null}
       </section>
 
       <style>{`
@@ -1402,6 +1427,7 @@ export default function Escenario() {
             linear-gradient(90deg, #4c0519, #be123c 48%, #4c0519);
           opacity: 0.88;
           pointer-events: none;
+          transition: transform 1.1s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease;
         }
 
         .curtain-left {
@@ -1412,6 +1438,16 @@ export default function Escenario() {
         .curtain-right {
           right: 0;
           box-shadow: -18px 0 36px rgba(0, 0, 0, 0.5);
+        }
+
+        .curtain-left.is-open {
+          transform: translateX(-78%);
+          opacity: 0.44;
+        }
+
+        .curtain-right.is-open {
+          transform: translateX(78%);
+          opacity: 0.44;
         }
 
         .main-stage {
@@ -1439,7 +1475,6 @@ export default function Escenario() {
           border-radius: 8px;
           background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.36));
           color: white;
-          cursor: pointer;
           overflow: hidden;
           display: grid;
           place-items: end center;
@@ -1447,7 +1482,6 @@ export default function Escenario() {
           transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         }
 
-        .performer:hover,
         .performer.is-active {
           transform: translateY(-8px);
           border-color: color-mix(in srgb, var(--performer-color), white 25%);
@@ -1478,9 +1512,25 @@ export default function Escenario() {
         .performer-head {
           width: 48px;
           height: 48px;
+          display: grid;
+          place-items: center;
           border-radius: 999px;
           background: radial-gradient(circle at 34% 26%, #ffffff, var(--performer-color) 28%, #111827 72%);
+          color: white;
+          font-size: 1.25rem;
+          font-weight: 1000;
           box-shadow: 0 0 22px color-mix(in srgb, var(--performer-color), transparent 45%);
+        }
+
+        .performer-photo {
+          width: 58px;
+          height: 58px;
+          border: 2px solid rgba(255, 255, 255, 0.68);
+          border-radius: 999px;
+          object-fit: cover;
+          box-shadow:
+            0 0 24px color-mix(in srgb, var(--performer-color), transparent 38%),
+            0 10px 22px rgba(0, 0, 0, 0.34);
         }
 
         .performer-body {
@@ -1777,7 +1827,7 @@ export default function Escenario() {
           padding-right: 0.15rem;
         }
 
-        .queue-list button {
+        .queue-list div {
           display: grid;
           grid-template-columns: auto minmax(0, 1fr) auto;
           gap: 0.7rem;
@@ -1787,14 +1837,12 @@ export default function Escenario() {
           border-radius: 8px;
           background: rgba(255, 255, 255, 0.045);
           color: white;
-          cursor: pointer;
           padding: 0.65rem 0.75rem;
           text-align: left;
           transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
         }
 
-        .queue-list button:hover,
-        .queue-list button.is-active {
+        .queue-list div.is-active {
           transform: translateY(-1px);
           border-color: rgba(250, 204, 21, 0.44);
           background: rgba(250, 204, 21, 0.1);
@@ -2057,6 +2105,11 @@ export default function Escenario() {
           .performer-head {
             width: 40px;
             height: 40px;
+          }
+
+          .performer-photo {
+            width: 48px;
+            height: 48px;
           }
 
           .performer-body {

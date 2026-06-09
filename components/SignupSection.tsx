@@ -1259,21 +1259,6 @@ export default function SignupSection({
     await loadCamerino(userId);
   }
 
-  async function signOut() {
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    setSession(null);
-    setForm(emptyForm);
-    setPhotoFile(null);
-    setSamples([]);
-    setRole("audience");
-    setVerificationNotice("");
-    setIsEditingProfile(false);
-    setIsEditingCamerino(false);
-    setIsResettingPassword(false);
-    setStatus("Sesion cerrada.");
-  }
-
   return (
     <section
       id={isCamerinoPage ? "camerino" : "registro"}
@@ -1475,17 +1460,14 @@ export default function SignupSection({
                     </button>
                   ) : null}
                   {!isCamerinoPage ? (
-                  <button
-                    className="secondary-button px-5 py-3"
-                    type="button"
-                    onClick={() => setIsEditingProfile((current) => !current)}
-                  >
-                    {isEditingProfile ? "Cerrar edición" : "Editar mi perfil"}
-                  </button>
+                    <button
+                      className="secondary-button px-5 py-3"
+                      type="button"
+                      onClick={() => setIsEditingProfile((current) => !current)}
+                    >
+                      {isEditingProfile ? "Cerrar edición" : "Editar mi perfil"}
+                    </button>
                   ) : null}
-                  <button className="secondary-button px-5 py-3" onClick={signOut}>
-                    Salir
-                  </button>
                 </div>
               </div>
 
