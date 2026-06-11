@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent } from "react";
+import { ChangeEvent, FormEvent, ReactNode, useState } from "react";
 
 type CamerinoSample = {
   id: string;
@@ -24,7 +24,7 @@ type CamerinoForm = {
   camerino_theme: string;
 };
 
-type CamerinoProfileProps = {
+type Props = {
   addSample: (event: FormEvent<HTMLFormElement>) => void;
   deleteSample: (sampleId: string) => void;
   form: CamerinoForm;
@@ -40,57 +40,65 @@ type CamerinoProfileProps = {
   setSampleTitle: (value: string) => void;
   setSampleType: (value: CamerinoSample["sample_type"]) => void;
   setSampleUrl: (value: string) => void;
-  updateForm: (field: "camerino_theme" | "stage_name", value: string) => void;
+  updateForm: (field: keyof CamerinoForm, value: string) => void;
+  followersCount?: number;
+  friendsCount?: number;
+  onMessageClick?: () => void;
 };
 
-const themeOptions = [
+const themes = [
   {
     value: "gold",
-    label: "Dorado",
-    glow: "rgba(250, 204, 21, 0.34)",
-    gradient: "linear-gradient(135deg, #facc15, #fb7185, #22d3ee)",
-    soft: "rgba(250, 204, 21, 0.14)",
+    label: "Galaxia Dorada",
+    accent: "#FFD700",
+    glow: "rgba(255,215,0,.55)",
+    bg: "radial-gradient(circle at 18% 18%,rgba(255,215,0,.24),transparent 28%),radial-gradient(circle at 82% 22%,rgba(236,72,153,.18),transparent 30%),linear-gradient(135deg,#050505,#111827 55%,#140a00)",
   },
   {
     value: "cyan",
-    label: "Neón",
-    glow: "rgba(34, 211, 238, 0.34)",
-    gradient: "linear-gradient(135deg, #22d3ee, #38bdf8, #ffffff)",
-    soft: "rgba(34, 211, 238, 0.14)",
+    label: "Órbita Cósmica",
+    accent: "#22d3ee",
+    glow: "rgba(34,211,238,.55)",
+    bg: "radial-gradient(circle at 15% 20%,rgba(34,211,238,.26),transparent 28%),radial-gradient(circle at 85% 25%,rgba(255,145,0,.22),transparent 30%),linear-gradient(135deg,#020617,#050505 55%,#1a0618)",
   },
   {
     value: "pink",
-    label: "Pop",
-    glow: "rgba(236, 72, 153, 0.36)",
-    gradient: "linear-gradient(135deg, #ec4899, #f97316, #facc15)",
-    soft: "rgba(236, 72, 153, 0.14)",
+    label: "Premiere Pop",
+    accent: "#ec4899",
+    glow: "rgba(236,72,153,.55)",
+    bg: "radial-gradient(circle at 20% 20%,rgba(236,72,153,.26),transparent 28%),radial-gradient(circle at 85% 20%,rgba(255,215,0,.18),transparent 30%),linear-gradient(135deg,#160014,#050505 55%,#111827)",
   },
   {
     value: "violet",
-    label: "Violeta",
-    glow: "rgba(168, 85, 247, 0.34)",
-    gradient: "linear-gradient(135deg, #a855f7, #ec4899, #22d3ee)",
-    soft: "rgba(168, 85, 247, 0.14)",
+    label: "Royal Talent",
+    accent: "#a855f7",
+    glow: "rgba(168,85,247,.55)",
+    bg: "radial-gradient(circle at 20% 20%,rgba(168,85,247,.26),transparent 28%),radial-gradient(circle at 85% 20%,rgba(255,215,0,.18),transparent 30%),linear-gradient(135deg,#090011,#050505 55%,#101827)",
   },
   {
     value: "emerald",
-    label: "Verde",
-    glow: "rgba(52, 211, 153, 0.32)",
-    gradient: "linear-gradient(135deg, #34d399, #22d3ee, #facc15)",
-    soft: "rgba(52, 211, 153, 0.14)",
+    label: "Emerald Live",
+    accent: "#34d399",
+    glow: "rgba(52,211,153,.55)",
+    bg: "radial-gradient(circle at 20% 20%,rgba(52,211,153,.24),transparent 28%),radial-gradient(circle at 85% 20%,rgba(34,211,238,.18),transparent 30%),linear-gradient(135deg,#001711,#050505 55%,#111827)",
   },
 ];
 
-const sampleTypeOptions = [
+const designs = [
+  "Órbita Estelar",
+  "Escenario Galaxy",
+  "Premiere Gold",
+  "Neón Cósmico",
+];
+
+const sampleTypes = [
   { value: "video", label: "Video" },
   { value: "audio", label: "Audio" },
   { value: "image", label: "Imagen" },
   { value: "link", label: "Link" },
 ] as const;
 
-function getSampleLabel(type: CamerinoSample["sample_type"]) {
-  return sampleTypeOptions.find((option) => option.value === type)?.label ?? "Link";
-}
+const allowedThemeValues = ["gold", "cyan", "pink", "violet", "emerald"];
 
 export default function CamerinoProfile({
   addSample,
@@ -109,226 +117,305 @@ export default function CamerinoProfile({
   setSampleType,
   setSampleUrl,
   updateForm,
-}: CamerinoProfileProps) {
-  const theme =
-    themeOptions.find((option) => option.value === form.camerino_theme) ??
-    themeOptions[0];
+  followersCount = 0,
+  friendsCount = 0,
+  onMessageClick,
+}: Props) {
+  const [design, setDesign] = useState(designs[0]);
+
+  const safeTheme = allowedThemeValues.includes(form.camerino_theme)
+    ? form.camerino_theme
+    : "gold";
+
+  const theme = themes.find((item) => item.value === safeTheme) ?? themes[0];
+
   const displayName = form.stage_name || form.name || "Mi Camerino";
+  const username = form.username || "usuario";
   const location = [form.city, form.country].filter(Boolean).join(", ");
 
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+
   return (
-    <section className="overflow-hidden rounded-[28px] border border-white/15 bg-black/34 shadow-[0_0_38px_rgba(0,0,0,0.28)]">
-      <div
-        className="relative min-h-72 p-5 md:p-7"
-        style={{
-          background: `radial-gradient(circle at 18% 20%, ${theme.glow}, transparent 32%), radial-gradient(circle at 78% 18%, rgba(255,255,255,0.16), transparent 24%), linear-gradient(135deg, rgba(2,6,23,0.92), rgba(15,23,42,0.74))`,
-        }}
-      >
-        <div className="absolute inset-x-0 top-0 h-1" style={{ background: theme.gradient }} />
+    <section className="rounded-[36px] border border-white/10 bg-[#050505] p-3 text-white shadow-[0_40px_120px_rgba(0,0,0,.75)]">
+      <article className="overflow-hidden rounded-[30px] border border-yellow-300/15 bg-black">
+        <div
+          className="relative m-3 overflow-hidden rounded-[26px] border border-white/10 p-5 md:p-8"
+          style={{ background: theme.bg }}
+        >
+          <div className="pointer-events-none absolute inset-0 bg-[url('/et-portada.png')] bg-cover bg-center opacity-10" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/75" />
 
-        <div className="relative grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-          <div className="flex gap-4">
-            <div
-              className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-[28px] border border-white/24 bg-black/30 text-3xl font-black shadow-[0_0_38px_rgba(255,255,255,0.12)]"
-              style={{ boxShadow: `0 0 42px ${theme.glow}` }}
-            >
-              {form.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt=""
-                  className="h-full w-full object-cover"
-                  src={form.photo_url}
-                />
-              ) : (
-                displayName.slice(0, 1)
-              )}
+          <div className="relative flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,.95)]" />
+              <span className="text-xs font-black uppercase tracking-[.24em] text-white/55">
+                Activo
+              </span>
             </div>
 
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-white/62">
-                Camerino personal
-              </p>
-              <h3 className="mt-2 break-words text-3xl font-black leading-none md:text-5xl">
-                {displayName}
-              </h3>
-              <p className="mt-2 text-sm font-black text-cyan-100">
-                @{form.username || "usuario"}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs font-black uppercase tracking-[0.12em] text-white/72">
-                <span className="rounded-full border border-white/18 bg-white/10 px-3 py-2">
-                  {form.talent_type || "Talento libre"}
-                </span>
-                <span className="rounded-full border border-white/18 bg-white/10 px-3 py-2">
-                  {form.genre || "Estilo propio"}
-                </span>
-                {location ? (
-                  <span className="rounded-full border border-white/18 bg-white/10 px-3 py-2">
-                    {location}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid content-between gap-5">
-            <p className="rounded-[22px] border border-white/14 bg-black/24 p-4 text-sm font-semibold leading-7 text-white/72">
-              {form.bio ||
-                "Este camerino esta listo para presentar canciones, demos, fotos, videos y momentos favoritos."}
-            </p>
-
-            {isEditing ? (
-              <form
-                className="grid gap-3 rounded-[22px] border border-white/14 bg-black/24 p-4"
-                onSubmit={onSave}
+            {form.demo_video_url ? (
+              <a
+                href={form.demo_video_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full px-5 py-2.5 text-xs font-black uppercase tracking-[.16em] text-black transition hover:scale-105"
+                style={{
+                  background: theme.accent,
+                  boxShadow: `0 0 30px ${theme.glow}`,
+                }}
               >
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
-                      Nombre real
-                    </span>
-                    <span className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/52">
-                      {form.name || "Guardado en tu perfil"}
-                    </span>
-                  </label>
-                  <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
-                      Nombre artístico
-                    </span>
-                    <input
-                      className="input"
-                      placeholder="Tu nombre de escenario"
-                      value={form.stage_name}
-                      onChange={(event) =>
-                        updateForm("stage_name", event.target.value)
-                      }
-                    />
-                  </label>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
-                      Foto
-                    </span>
-                    <input
-                      accept="image/*"
-                      className="input"
-                      disabled={isSaving}
-                      type="file"
-                      onChange={onPhotoChange}
-                    />
-                    <span className="text-xs font-bold text-white/45">
-                      {photoFile ? photoFile.name : "Máximo 3 MB"}
-                    </span>
-                  </label>
-                  <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-white/58">
-                      Color del camerino
-                    </span>
-                    <select
-                      className="input"
-                      value={form.camerino_theme}
-                      onChange={(event) =>
-                        updateForm("camerino_theme", event.target.value)
-                      }
-                    >
-                      {themeOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <button
-                  className="gold-button-small justify-self-start"
-                  disabled={isSaving}
-                >
-                  {isSaving ? "Guardando..." : "Guardar camerino"}
-                </button>
-              </form>
+                Demo
+              </a>
             ) : null}
           </div>
-        </div>
-      </div>
 
-      <div className="grid gap-5 p-5 md:p-7">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
-              Muestras destacadas
-            </p>
-            <h4 className="mt-1 text-2xl font-black">Mi trabajo</h4>
-          </div>
-          <span className="rounded-full border border-white/14 bg-white/8 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white/55">
-            {samples.length} muestras
-          </span>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          {samples.length ? (
-            samples.map((sample) => (
-              <article
-                className="rounded-[18px] border border-white/12 bg-white/[0.045] p-4"
-                key={sample.id}
+          <div className="relative mt-8 grid gap-8 lg:grid-cols-[250px_1fr]">
+            <aside className="grid justify-items-center gap-4">
+              <div
+                className="rounded-[34px] p-2.5"
+                style={{
+                  background: `linear-gradient(135deg,${theme.accent},#ffffff22,#ec4899)`,
+                  boxShadow: `0 0 45px ${theme.glow}`,
+                }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-white/42">
-                      {getSampleLabel(sample.sample_type)}
-                    </p>
-                    <h5 className="mt-1 truncate text-lg font-black">
-                      {sample.title}
-                    </h5>
+                <div className="h-48 w-48 overflow-hidden rounded-[28px] border border-black/50 bg-black p-2">
+                  <div className="h-full w-full overflow-hidden rounded-[22px] bg-[#080808]">
+                    {form.photo_url ? (
+                      <img
+                        alt={displayName}
+                        src={form.photo_url}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="grid h-full place-items-center text-6xl font-black"
+                        style={{ color: theme.accent }}
+                      >
+                        {initials || "ET"}
+                      </div>
+                    )}
                   </div>
-                  <button
-                    className="rounded-full border border-white/12 px-3 py-1 text-xs font-black uppercase tracking-[0.1em] text-white/52 transition hover:border-red-300/50 hover:text-red-100"
-                    type="button"
-                    onClick={() => deleteSample(sample.id)}
-                  >
-                    Quitar
-                  </button>
                 </div>
-                <a
-                  className="mt-4 inline-flex rounded-full border border-white/14 bg-black/24 px-4 py-2 text-sm font-black text-cyan-100 transition hover:border-cyan-200/50"
-                  href={sample.url}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Ver muestra
-                </a>
-              </article>
-            ))
-          ) : (
-            <div
-              className="rounded-[18px] border border-white/12 p-5 text-sm font-bold leading-6 text-white/62 md:col-span-2"
-              style={{ background: theme.soft }}
-            >
-              Agrega videos, canciones, fotos, demos o links para que tu
-              camerino se sienta como tu espacio de artista.
-            </div>
-          )}
+              </div>
+
+              <p
+                className="w-full rounded-full px-4 py-2 text-center text-xs font-black uppercase tracking-[.18em] text-black"
+                style={{ background: theme.accent }}
+              >
+                {form.talent_type || "Talento"}
+              </p>
+
+              <div className="grid w-full grid-cols-3 gap-2">
+                <Stat label="Fans" value={followersCount} />
+                <Stat label="Amigos" value={friendsCount} />
+                <Stat label="Shows" value={samples.length} />
+              </div>
+
+              <button
+                type="button"
+                onClick={onMessageClick}
+                className="w-full rounded-full border border-cyan-200/25 bg-cyan-300/10 px-5 py-3 text-sm font-black uppercase tracking-[.14em] text-cyan-100 transition hover:bg-cyan-300/20"
+              >
+                Mensaje
+              </button>
+            </aside>
+
+            <main className="flex flex-col justify-center">
+              <p
+                className="text-xs font-black uppercase tracking-[.36em]"
+                style={{ color: theme.accent }}
+              >
+                Camerino oficial
+              </p>
+
+              <h1 className="mt-3 break-words text-5xl font-black uppercase leading-none md:text-7xl xl:text-8xl">
+                {displayName}
+              </h1>
+
+              <p className="mt-4 text-sm font-black text-white/55">
+                @{username}
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Chip theme={theme}>{form.genre || "Estilo propio"}</Chip>
+                {location ? <Chip theme={theme}>{location}</Chip> : null}
+                <Chip theme={theme}>{design}</Chip>
+              </div>
+
+              <p className="mt-7 max-w-4xl text-lg font-semibold leading-8 text-white/70">
+                {form.bio ||
+                  "Agrega tu biografía para mostrar tu historia, tu talento y tu energía en el escenario."}
+              </p>
+            </main>
+          </div>
         </div>
 
-        <form
-          className="grid gap-3 rounded-[20px] border border-white/12 bg-black/24 p-4 md:grid-cols-[1fr_1fr_auto]"
-          onSubmit={addSample}
-        >
-          <input
-            className="input"
-            placeholder="Titulo de la muestra"
-            value={sampleTitle}
-            onChange={(event) => setSampleTitle(event.target.value)}
-          />
-          <input
-            className="input"
-            placeholder="URL de video, audio, imagen o portafolio"
-            type="url"
-            value={sampleUrl}
-            onChange={(event) => setSampleUrl(event.target.value)}
-          />
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto] md:grid-cols-1">
+        {isEditing ? (
+          <form
+            onSubmit={onSave}
+            className="m-3 grid gap-4 rounded-[26px] border border-white/10 bg-white/[.045] p-5 md:grid-cols-2"
+          >
+            <Field title="Diseño">
+              <select
+                className="input"
+                value={design}
+                onChange={(event) => setDesign(event.target.value)}
+              >
+                {designs.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </select>
+            </Field>
+
+            <Field title="Color">
+              <select
+                className="input"
+                value={safeTheme}
+                onChange={(event) =>
+                  updateForm("camerino_theme", event.target.value)
+                }
+              >
+                {themes.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field title="Nombre artístico">
+              <input
+                className="input"
+                value={form.stage_name}
+                placeholder="Nombre artístico"
+                onChange={(event) =>
+                  updateForm("stage_name", event.target.value)
+                }
+              />
+            </Field>
+
+            <Field title="Foto de perfil">
+              <input
+                className="input"
+                accept="image/*"
+                disabled={isSaving}
+                type="file"
+                onChange={onPhotoChange}
+              />
+              <span className="text-xs font-bold text-white/40">
+                {photoFile ? photoFile.name : "Máximo 3 MB"}
+              </span>
+            </Field>
+
+            <button
+              disabled={isSaving}
+              className="rounded-full px-6 py-3 text-sm font-black uppercase tracking-[.16em] text-black md:col-span-2"
+              style={{
+                background: theme.accent,
+                boxShadow: `0 0 30px ${theme.glow}`,
+              }}
+            >
+              {isSaving ? "Guardando..." : "Guardar camerino"}
+            </button>
+          </form>
+        ) : null}
+      </article>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_360px]">
+        <section className="rounded-[30px] border border-white/10 bg-black p-5">
+          <h2
+            className="text-sm font-black uppercase tracking-[.26em]"
+            style={{ color: theme.accent }}
+          >
+            Muestras destacadas
+          </h2>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {samples.length ? (
+              samples.map((sample, index) => (
+                <article
+                  key={sample.id}
+                  className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[.045] transition hover:-translate-y-1 hover:border-white/25"
+                >
+                  <div className="m-3 overflow-hidden rounded-[20px] border border-white/10">
+                    <div
+                      className="grid aspect-video place-items-center text-5xl font-black"
+                      style={{
+                        background: `radial-gradient(circle at 30% 20%,${theme.accent},transparent 32%),linear-gradient(135deg,#070707,#111827 55%,#ec4899)`,
+                      }}
+                    >
+                      {index + 1}
+                    </div>
+                  </div>
+
+                  <div className="p-4 pt-1">
+                    <p className="text-xs font-black uppercase tracking-[.16em] text-white/40">
+                      {sample.sample_type}
+                    </p>
+
+                    <h3 className="mt-1 truncate font-black uppercase">
+                      {sample.title}
+                    </h3>
+
+                    <div className="mt-4 flex justify-between gap-2">
+                      <a
+                        href={sample.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full bg-white/10 px-4 py-2 text-xs font-black uppercase text-white/75"
+                      >
+                        Ver
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => deleteSample(sample.id)}
+                        className="rounded-full border border-white/10 px-3 py-2 text-xs font-black uppercase text-white/45 hover:text-red-100"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="rounded-[24px] border border-white/10 bg-white/[.04] p-5 text-sm font-bold text-white/55 md:col-span-3">
+                Agrega videos, canciones, fotos, demos o links para construir tu show.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <aside className="rounded-[30px] border border-white/10 bg-black p-5">
+          <h2
+            className="text-sm font-black uppercase tracking-[.26em]"
+            style={{ color: theme.accent }}
+          >
+            Nueva muestra
+          </h2>
+
+          <form onSubmit={addSample} className="mt-5 grid gap-3">
+            <input
+              className="input"
+              placeholder="Título"
+              value={sampleTitle}
+              onChange={(event) => setSampleTitle(event.target.value)}
+            />
+
+            <input
+              className="input"
+              placeholder="URL"
+              type="url"
+              value={sampleUrl}
+              onChange={(event) => setSampleUrl(event.target.value)}
+            />
+
             <select
               className="input"
               value={sampleType}
@@ -336,18 +423,73 @@ export default function CamerinoProfile({
                 setSampleType(event.target.value as CamerinoSample["sample_type"])
               }
             >
-              {sampleTypeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              {sampleTypes.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
                 </option>
               ))}
             </select>
-            <button className="gold-button-small" type="submit">
+
+            <button
+              className="rounded-full px-5 py-3 text-sm font-black uppercase tracking-[.14em] text-black"
+              style={{ background: theme.accent }}
+            >
               Agregar
             </button>
-          </div>
-        </form>
+          </form>
+        </aside>
       </div>
     </section>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-[18px] border border-white/10 bg-white/[.05] p-3 text-center">
+      <strong className="block text-xl font-black">{value}</strong>
+      <span className="text-[10px] font-black uppercase tracking-[.12em] text-white/45">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function Chip({
+  children,
+  theme,
+}: {
+  children: ReactNode;
+  theme: {
+    accent: string;
+  };
+}) {
+  return (
+    <span
+      className="rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[.13em]"
+      style={{
+        borderColor: `${theme.accent}66`,
+        background: `${theme.accent}18`,
+        color: theme.accent,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Field({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-xs font-black uppercase tracking-[.16em] text-white/45">
+        {title}
+      </span>
+      {children}
+    </label>
   );
 }
