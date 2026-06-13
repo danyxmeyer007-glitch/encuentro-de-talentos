@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, ReactNode, useState } from "react";
+import { ChangeEvent, FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 
 type CamerinoSample = {
   id: string;
@@ -24,6 +24,8 @@ type CamerinoForm = {
   camerino_theme: string;
 };
 
+type CamerinoEditableField = keyof CamerinoForm;
+
 type Props = {
   addSample: (event: FormEvent<HTMLFormElement>) => void;
   deleteSample: (sampleId: string) => void;
@@ -40,7 +42,7 @@ type Props = {
   setSampleTitle: (value: string) => void;
   setSampleType: (value: CamerinoSample["sample_type"]) => void;
   setSampleUrl: (value: string) => void;
-  updateForm: (field: keyof CamerinoForm, value: string) => void;
+  updateForm: (field: CamerinoEditableField, value: string) => void;
   followersCount?: number;
   friendsCount?: number;
   onMessageClick?: () => void;
@@ -122,6 +124,10 @@ export default function CamerinoProfile({
   onMessageClick,
 }: Props) {
   const [design, setDesign] = useState(designs[0]);
+  const photoPreviewUrl = useMemo(
+    () => (photoFile ? URL.createObjectURL(photoFile) : ""),
+    [photoFile],
+  );
 
   const safeTheme = allowedThemeValues.includes(form.camerino_theme)
     ? form.camerino_theme
@@ -132,6 +138,15 @@ export default function CamerinoProfile({
   const displayName = form.stage_name || form.name || "Mi Camerino";
   const username = form.username || "usuario";
   const location = [form.city, form.country].filter(Boolean).join(", ");
+  const visiblePhotoUrl = photoPreviewUrl || form.photo_url;
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl);
+      }
+    };
+  }, [photoPreviewUrl]);
 
   const initials = displayName
     .split(" ")
@@ -186,11 +201,16 @@ export default function CamerinoProfile({
               >
                 <div className="h-48 w-48 overflow-hidden rounded-[28px] border border-black/50 bg-black p-2">
                   <div className="h-full w-full overflow-hidden rounded-[22px] bg-[#080808]">
-                    {form.photo_url ? (
-                      <img
-                        alt={displayName}
-                        src={form.photo_url}
+                    {visiblePhotoUrl ? (
+                      <div
+                        aria-label={displayName}
                         className="h-full w-full object-cover"
+                        role="img"
+                        style={{
+                          backgroundImage: `url(${visiblePhotoUrl})`,
+                          backgroundPosition: "center",
+                          backgroundSize: "cover",
+                        }}
                       />
                     ) : (
                       <div
@@ -300,6 +320,26 @@ export default function CamerinoProfile({
               />
             </Field>
 
+            <Field title="Categoría pública">
+              <input
+                className="input"
+                value={form.talent_type}
+                placeholder="Canto, danza, actuación..."
+                onChange={(event) =>
+                  updateForm("talent_type", event.target.value)
+                }
+              />
+            </Field>
+
+            <Field title="Género o estilo">
+              <input
+                className="input"
+                value={form.genre}
+                placeholder="Balada, urbano, pop, regional..."
+                onChange={(event) => updateForm("genre", event.target.value)}
+              />
+            </Field>
+
             <Field title="Foto de perfil">
               <input
                 className="input"
@@ -313,13 +353,30 @@ export default function CamerinoProfile({
               </span>
             </Field>
 
+            <Field title="Demo URL">
+              <input
+                className="input"
+                value={form.demo_video_url}
+                placeholder="https://..."
+                type="url"
+                onChange={(event) =>
+                  updateForm("demo_video_url", event.target.value)
+                }
+              />
+            </Field>
+
+            <Field title="Biografía">
+              <textarea
+                className="input min-h-32 resize-y"
+                value={form.bio}
+                placeholder="Cuenta tu historia y qué quieres mostrar en ET."
+                onChange={(event) => updateForm("bio", event.target.value)}
+              />
+            </Field>
+
             <button
               disabled={isSaving}
-              className="rounded-full px-6 py-3 text-sm font-black uppercase tracking-[.16em] text-black md:col-span-2"
-              style={{
-                background: theme.accent,
-                boxShadow: `0 0 30px ${theme.glow}`,
-              }}
+              className="gold-button text-sm md:col-span-2"
             >
               {isSaving ? "Guardando..." : "Guardar camerino"}
             </button>
@@ -431,8 +488,7 @@ export default function CamerinoProfile({
             </select>
 
             <button
-              className="rounded-full px-5 py-3 text-sm font-black uppercase tracking-[.14em] text-black"
-              style={{ background: theme.accent }}
+              className="gold-button text-sm"
             >
               Agregar
             </button>

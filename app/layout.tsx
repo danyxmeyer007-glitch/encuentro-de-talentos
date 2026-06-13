@@ -9,8 +9,9 @@ import AppSessionGate from "@/components/AppSessionGate";
 export const metadata: Metadata = {
   metadataBase: new URL("https://encuentrodetalentos.com"),
   applicationName: "Encuentro de Talentos",
-  title: "Encuentro de Talentos",
-  description: "Diviértete. Participa. Gana premios.",
+  title: "Encuentro de Talentos | Plataforma de talento",
+  description:
+    "Descubre talentos, crea tu camerino, participa en concursos y sube al Salón de la Fama.",
   manifest: "/manifest.webmanifest",
   alternates: {
     canonical: "/",
@@ -20,8 +21,9 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Encuentro de Talentos",
-    description: "Diviértete. Participa. Gana premios.",
+    title: "Encuentro de Talentos | Plataforma de talento",
+    description:
+      "Una plataforma en español para artistas, mentores, jurados y fans.",
     locale: "es_MX",
     type: "website",
   },
@@ -42,7 +44,7 @@ export const metadata: Metadata = {
   },
   other: {
     "mobile-web-app-capable": "yes",
-    "msapplication-TileColor": "#06172f",
+    "msapplication-TileColor": "#111111",
   },
 };
 
@@ -55,7 +57,7 @@ export default function RootLayout({
     <html lang="es-MX" dir="ltr" translate="yes">
       <head>
         <meta httpEquiv="Content-Language" content="es-MX" />
-        <meta name="theme-color" content="#06172f" />
+        <meta name="theme-color" content="#111111" />
       </head>
       <body>
         <BackgroundVideo />

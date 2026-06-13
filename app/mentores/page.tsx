@@ -48,7 +48,7 @@ export default function MentoresPage() {
     <main className="page-shell">
       <AiMentor />
 
-      <section className="relative px-4 pb-16 text-white md:pb-24">
+      <section className="et-showcase-section relative px-4 pb-16 text-white md:pb-24">
         <div className="mx-auto max-w-7xl">
           <div className="mb-10 max-w-3xl">
             <p className="mb-4 text-sm font-black uppercase tracking-[0.35em] text-cyan-300">
@@ -65,7 +65,7 @@ export default function MentoresPage() {
 
           <div className="mb-8 rounded-[32px] border border-white/[0.16] bg-white/[0.035] p-5 shadow-[0_0_18px_rgba(250,204,21,0.11),inset_0_1px_0_rgba(255,255,255,0.18)] md:p-6">
             <p className="text-sm font-black uppercase tracking-[0.18em] text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.22)]">
-              Leyenda: mentores humanos coming soon • aplicaciones abiertas para formar el equipo ET
+              Leyenda: mentores humanos próximamente • aplicaciones abiertas para formar el equipo ET
             </p>
           </div>
 

@@ -290,12 +290,12 @@ function validateRequiredProfileFields(form: ProfileForm, hasProfilePhoto: boole
   const dateOfBirth = getDateOfBirth(form);
 
   if (!form.name.trim()) return "Agrega tu nombre completo.";
-  if (!form.country.trim()) return "Selecciona tu pais.";
+  if (!form.country.trim()) return "Selecciona tu país.";
   if (!form.city.trim()) return "Agrega tu ciudad.";
-  if (!dateOfBirth) return "Agrega tu fecha de nacimiento completa y valida.";
-  if (!form.gender) return "Selecciona tu genero.";
+  if (!dateOfBirth) return "Agrega tu fecha de nacimiento completa y válida.";
+  if (!form.gender) return "Selecciona tu género.";
   if (!hasProfilePhoto) return "Sube una foto de perfil.";
-  if (!form.talent_type) return "Selecciona tu categoria.";
+  if (!form.talent_type) return "Selecciona tu categoría.";
   if (!form.bio.trim()) return "Agrega una bio corta para tu perfil.";
 
   return "";
@@ -327,19 +327,6 @@ function getEmailRedirectTo() {
   const siteUrl = getPublicSiteUrl();
 
   return siteUrl ? `${siteUrl}/registro?verified=1` : undefined;
-}
-
-function getOAuthRedirectTo() {
-  if (
-    typeof navigator !== "undefined" &&
-    navigator.userAgent.includes("EncuentroTalentosAndroid")
-  ) {
-    return "encuentrodetalentos://auth/callback";
-  }
-
-  const siteUrl = getPublicSiteUrl();
-
-  return siteUrl ? `${siteUrl}/camerino` : undefined;
 }
 
 function isAlreadyRegisteredError(error: unknown) {
@@ -678,7 +665,7 @@ export default function SignupSection({
 
       if (verified) {
         setVerificationNotice(
-          "Gracias por verificar tu correo. Inicia sesion para abrir tu camerino.",
+          "Gracias por verificar tu correo. Inicia sesión para abrir tu camerino.",
         );
         window.history.replaceState({}, "", window.location.pathname);
       }
@@ -727,10 +714,7 @@ export default function SignupSection({
     }
   }
 
-  function updateCamerinoForm(
-    field: "camerino_theme" | "stage_name",
-    value: string,
-  ) {
+  function updateCamerinoForm(field: keyof ProfileForm, value: string) {
     updateForm(field, value);
 
     if (field === "camerino_theme") {
@@ -745,7 +729,7 @@ export default function SignupSection({
     }
 
     if (!userId) {
-      setStatus("Inicia sesion para guardar tu camerino.");
+      setStatus("Inicia sesión para guardar tu camerino.");
       return;
     }
 
@@ -789,6 +773,40 @@ export default function SignupSection({
 
     setRole(nextStageName ? "performer" : role);
     await loadCamerino(userId);
+  }
+
+  async function saveCamerinoDetails() {
+    if (!supabase) {
+      setStatus("Falta configurar Supabase para guardar el camerino.");
+      return;
+    }
+
+    if (!userId) {
+      setStatus("Inicia sesión para guardar tu camerino.");
+      return;
+    }
+
+    const photoUrl = await uploadProfilePhoto(userId);
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        photo_url: photoUrl || null,
+        bio: form.bio.trim() || null,
+        talent_type: form.talent_type || null,
+        camerino_theme: form.camerino_theme || "gold",
+      })
+      .eq("user_id", userId);
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    setForm((current) => ({
+      ...current,
+      photo_url: photoUrl,
+    }));
+
+    await saveCamerinoBasics();
   }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
@@ -884,10 +902,10 @@ export default function SignupSection({
         }
 
         setVerificationNotice(
-          "Gracias por registrarte. Te enviamos un correo de verificacion; abre el enlace para activar tu camerino.",
+          "Gracias por registrarte. Te enviamos un correo de verificación; abre el enlace para activar tu camerino.",
         );
         setStatus(
-          "Si no lo ves, revisa spam o promociones. El enlace debe regresar a esta pagina.",
+          "Si no lo ves, revisa spam o promociones. El enlace debe regresar a esta página.",
         );
         return;
       }
@@ -916,7 +934,7 @@ export default function SignupSection({
       if (isAlreadyRegisteredError(error)) {
         setShowExistingEmailActions(true);
         setStatus(
-          "Ese correo ya existe en Supabase. Puede ser un registro pendiente de verificacion; revisa tu correo o reenvia el enlace.",
+          "Ese correo ya existe en Supabase. Puede ser un registro pendiente de verificación; revisa tu correo o reenvía el enlace.",
         );
       } else if (isSignupDisabledError(error)) {
         setStatus(
@@ -930,33 +948,6 @@ export default function SignupSection({
     }
   }
 
-  async function signInWithGoogle() {
-    if (!supabase) {
-      setStatus("Falta configurar Supabase para entrar con Google.");
-      return;
-    }
-
-    setIsSaving(true);
-    setStatus("");
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: getOAuthRedirectTo(),
-        queryParams: {
-          access_type: "offline",
-          prompt: "select_account",
-        },
-      },
-    });
-
-    setIsSaving(false);
-
-    if (error) {
-      setStatus(error.message);
-    }
-  }
-
   async function resendVerificationEmail() {
     if (!supabase) {
       setStatus("Falta configurar Supabase para reenviar el correo.");
@@ -964,7 +955,7 @@ export default function SignupSection({
     }
 
     if (!email.trim()) {
-      setStatus("Escribe tu correo para reenviar la verificacion.");
+      setStatus("Escribe tu correo para reenviar la verificación.");
       return;
     }
 
@@ -987,7 +978,7 @@ export default function SignupSection({
     }
 
     setVerificationNotice(
-      "Te reenviamos el correo de verificacion. Abre el enlace para activar tu camerino.",
+      "Te reenviamos el correo de verificación. Abre el enlace para activar tu camerino.",
     );
     setStatus("Revisa inbox, spam o promociones.");
   }
@@ -1029,7 +1020,7 @@ export default function SignupSection({
     }
 
     if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
-      setStatus("Usa minimo 8 caracteres con letras y numeros.");
+      setStatus("Usa mínimo 8 caracteres con letras y números.");
       return;
     }
 
@@ -1061,7 +1052,7 @@ export default function SignupSection({
     }
 
     if (!currentUserId) {
-      setStatus("Inicia sesion para guardar tu perfil.");
+      setStatus("Inicia sesión para guardar tu perfil.");
       return;
     }
 
@@ -1161,7 +1152,7 @@ export default function SignupSection({
     setIsSaving(true);
 
     try {
-      await saveCamerinoBasics();
+      await saveCamerinoDetails();
       setStatus("Camerino actualizado.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo guardar.");
@@ -1302,7 +1293,7 @@ export default function SignupSection({
   return (
     <section
       id={isCamerinoPage ? "camerino" : "registro"}
-      className={`relative px-4 text-white ${
+      className={`et-showcase-section relative px-4 text-white ${
         isCamerinoPage ? "py-8 md:py-10" : "py-16 md:py-24"
       }`}
     >
@@ -1317,19 +1308,38 @@ export default function SignupSection({
       >
         {(!isCamerinoPage || !session) ? (
           <div>
-            <p className="mb-4 text-sm font-black uppercase tracking-[0.35em] text-cyan-300">
+            <p className="mb-4 text-sm font-black uppercase tracking-[0.35em] text-[#FFD700]">
               {isCamerinoPage ? "Mi Perfil" : "Participa 2026"}
             </p>
-            <h1 className="bg-gradient-to-r from-cyan-300 via-pink-400 to-yellow-300 bg-clip-text text-4xl font-black uppercase leading-none text-transparent md:text-6xl">
+            <h1 className="text-4xl font-black uppercase leading-none text-white drop-shadow-[0_0_24px_rgba(255,215,0,0.22)] md:text-6xl">
               {isCamerinoPage
                 ? "Entra a tu camerino"
                 : "Crea tu perfil y entra a tu camerino"}
             </h1>
-            <p className="mt-5 text-lg font-medium leading-8 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.18)]">
+            <p className="mt-5 text-lg font-medium leading-8 text-white/72">
               {isCamerinoPage
-                ? "Inicia sesion para ver tu espacio personal, editar tu estilo y mostrar tus mejores muestras."
-                : "El registro es para todos: audiencia, fans y futuros artistas. Una vez dentro, desde Mi Perfil puedes activar tu alta de artista para participar en canciones, debuts y el escenario live."}
+                ? "Inicia sesión para ver tu espacio personal, editar tu estilo y mostrar tus mejores muestras."
+                : "El registro es para todos: audiencia, fans y futuros artistas. Una vez dentro, desde Mi Perfil puedes activar tu alta de artista para participar en canciones, debuts y el escenario en vivo."}
             </p>
+            <div className="mt-7 overflow-hidden rounded-2xl border border-[#FFD700]/25 bg-black shadow-[0_0_34px_rgba(255,215,0,0.18)]">
+              <video
+                src="/videos/ETportada.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="aspect-video h-full w-full object-cover"
+              />
+              <div className="border-t border-[#FFD700]/20 bg-black/70 p-4">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#FFD700]">
+                  Diviértete. Participa. Gana premios.
+                </p>
+                <p className="mt-2 text-sm font-bold leading-6 text-white/68">
+                  La app protege Camerino y Escenario: primero entra o crea tu
+                  cuenta, después desbloquea tu espacio de talento.
+                </p>
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -1379,30 +1389,12 @@ export default function SignupSection({
                 </div>
               )}
 
-              <button
-                className="mb-5 flex w-full items-center justify-center gap-3 rounded-full border border-white/20 bg-white px-5 py-3 text-sm font-black uppercase tracking-[0.12em] text-slate-950 shadow-[0_0_24px_rgba(255,255,255,0.12)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isSaving}
-                type="button"
-                onClick={signInWithGoogle}
-              >
-                <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-base normal-case tracking-normal">
-                  G
-                </span>
-                Continuar con Google
-              </button>
-
-              <div className="mb-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs font-black uppercase tracking-[0.16em] text-white/45">
-                <span className="h-px bg-white/12" />
-                <span>o usa correo</span>
-                <span className="h-px bg-white/12" />
-              </div>
-
               <div className="grid gap-4 md:grid-cols-2">
                 <input
                   className="input"
                   autoComplete="email"
                   name="email"
-                  placeholder="Correo electronico"
+                  placeholder="Correo electrónico"
                   type="email"
                   value={email}
                   onChange={(event) => {
@@ -1420,8 +1412,8 @@ export default function SignupSection({
                     minLength={8}
                     name="password"
                     pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}"
-                    placeholder="Contrasena segura"
-                    title="Usa minimo 8 caracteres con letras y numeros."
+                    placeholder="Contraseña segura"
+                    title="Usa mínimo 8 caracteres con letras y números."
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
@@ -1545,6 +1537,8 @@ export default function SignupSection({
                 setSampleTitle={setSampleTitle}
                 setSampleType={setSampleType}
                 setSampleUrl={setSampleUrl}
+                followersCount={myProfile?.follower_count ?? 0}
+                friendsCount={friends.length}
                 updateForm={updateCamerinoForm}
               />
 
@@ -1599,7 +1593,7 @@ export default function SignupSection({
                 type="button"
                 onClick={resendVerificationEmail}
               >
-                Reenviar verificacion
+                Reenviar verificación
               </button>
               <button
                 className="secondary-button px-5 py-3"
@@ -1607,7 +1601,7 @@ export default function SignupSection({
                 type="button"
                 onClick={() => {
                   setAuthMode("signin");
-                  setStatus("Prueba entrar con ese correo y tu contrasena.");
+                  setStatus("Prueba entrar con ese correo y tu contraseña.");
                 }}
               >
                 Entrar con este correo
@@ -1780,7 +1774,7 @@ function ProfileEditor({
             ? photoFile.name
             : form.photo_url
               ? "Foto actual guardada"
-              : `Sube una imagen desde tu computadora o movil. Máximo ${maxProfilePhotoSizeMb} MB.`}
+              : `Sube una imagen desde tu computadora o móvil. Máximo ${maxProfilePhotoSizeMb} MB.`}
         </span>
       </label>
 
@@ -1790,7 +1784,7 @@ function ProfileEditor({
         onChange={(event) => updateForm("talent_type", event.target.value)}
         required
       >
-        <option value="">Selecciona tu categoria</option>
+        <option value="">Selecciona tu categoría</option>
         {talentOptions.map((option) => (
           <option key={option}>{option}</option>
         ))}
@@ -1881,6 +1875,7 @@ function ArtistDirectory({
   const publicProfiles = profiles.filter(
     (profile) => profile.user_id !== currentUserId,
   );
+  const followingProfiles = publicProfiles.filter((profile) => profile.is_following);
 
   return (
     <div className="rounded-[24px] border border-white/[0.16] bg-white/[0.035] p-5 shadow-[0_0_18px_rgba(250,204,21,0.11),inset_0_1px_0_rgba(255,255,255,0.18)] md:p-6">
@@ -1896,6 +1891,33 @@ function ArtistDirectory({
         </p>
       </div>
 
+      <div className="mt-5 grid gap-3 rounded-[18px] border border-yellow-300/20 bg-yellow-300/10 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-100">
+            Siguiendo
+          </p>
+          <span className="rounded-full border border-yellow-300/25 px-3 py-1 text-xs font-black text-yellow-100">
+            {followingProfiles.length}
+          </span>
+        </div>
+        {followingProfiles.length ? (
+          <div className="flex flex-wrap gap-2">
+            {followingProfiles.map((profile) => (
+              <span
+                className="rounded-full border border-white/15 bg-black/30 px-3 py-1.5 text-xs font-black uppercase tracking-[0.08em] text-white/75"
+                key={profile.user_id}
+              >
+                {profile.stage_name || profile.name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm font-bold leading-6 text-white/60">
+            Todavía no sigues a nadie. Usa “Seguir” en un perfil para armar tu lista.
+          </p>
+        )}
+      </div>
+
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         {publicProfiles.length ? (
           publicProfiles.map((profile) => (
@@ -1906,11 +1928,14 @@ function ArtistDirectory({
               <div className="flex gap-3">
                 <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border border-cyan-300/30 bg-cyan-300/10 text-lg font-black text-cyan-100">
                   {profile.photo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      alt=""
+                    <span
+                      aria-hidden="true"
                       className="h-full w-full object-cover"
-                      src={profile.photo_url}
+                      style={{
+                        backgroundImage: `url(${profile.photo_url})`,
+                        backgroundPosition: "center",
+                        backgroundSize: "cover",
+                      }}
                     />
                   ) : (
                     profile.name.slice(0, 1)

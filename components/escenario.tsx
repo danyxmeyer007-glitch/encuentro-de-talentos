@@ -54,42 +54,6 @@ const contestSlug = "voz-piloto-2026";
 const liveKitRoomName = "encuentrodetalentos";
 const maxVoiceParticipants = 10;
 
-const fallbackPerformers: StagePerformer[] = [
-  {
-    name: "Angie Paola Cifuentes",
-    role: "Voz principal",
-    song: "Balada pop",
-    color: "#22d3ee",
-  },
-  {
-    name: "Nico",
-    role: "Freestyle",
-    song: "Rap en vivo",
-    color: "#ec4899",
-  },
-  {
-    name: "Sofia",
-    role: "Dueto invitado",
-    song: "Cover acustico",
-    color: "#facc15",
-  },
-];
-
-const listeners = [
-  "Ana",
-  "Luis",
-  "Majo",
-  "Leo",
-  "Iris",
-  "Dany",
-  "Sol",
-  "Rafa",
-  "Vale",
-  "Max",
-  "Nia",
-  "Pau",
-];
-
 const reactions = ["Bravo", "Aplausos", "Otra", "Fuego"];
 
 const reactionSounds: Record<string, string> = {
@@ -117,12 +81,12 @@ export default function Escenario() {
       : "Conecta Supabase para cargar la fila real",
   );
   const [joined, setJoined] = useState(false);
-  const [reactionCount, setReactionCount] = useState(182);
+  const [reactionCount, setReactionCount] = useState(0);
   const [roomOpen, setRoomOpen] = useState(false);
   const [micPassed, setMicPassed] = useState(false);
   const [muted, setMuted] = useState(false);
   const votingOpen = true;
-  const [votes, setVotes] = useState(64);
+  const [votes, setVotes] = useState(0);
   const liveKitIdentity = "";
   const [liveKitStatus, setLiveKitStatus] = useState("Listo para conectar");
   const [connectedRole, setConnectedRole] = useState<LiveKitRole | null>(null);
@@ -134,9 +98,9 @@ export default function Escenario() {
     "Sala lista para LiveKit",
   ]);
 
-  const stageQueue = contestQueue.length > 0 ? contestQueue : fallbackPerformers;
+  const stageQueue = contestQueue;
   const safeActivePerformer = stageQueue[activePerformer] ? activePerformer : 0;
-  const performer = stageQueue[safeActivePerformer] ?? stageQueue[0];
+  const performer = stageQueue[safeActivePerformer] ?? null;
   const currentUserRegistered = contestQueue.some(
     (item) => item.userId && item.userId === currentUserId,
   );
@@ -161,8 +125,8 @@ export default function Escenario() {
           : "Entrar como audiencia";
 
   const liveListeners = useMemo(
-    () => listeners.length + 218 + (joined ? 1 : 0),
-    [joined],
+    () => liveKitParticipants + (joined ? 1 : 0),
+    [joined, liveKitParticipants],
   );
 
   useEffect(() => {
@@ -174,7 +138,7 @@ export default function Escenario() {
 
   async function requestStageMedia() {
     if (!navigator.mediaDevices?.getUserMedia) {
-      setLiveKitStatus("Este navegador no permite activar microfono/camara.");
+      setLiveKitStatus("Este navegador no permite activar micrófono/cámara.");
       return false;
     }
 
@@ -256,7 +220,7 @@ export default function Escenario() {
 
       if (userIds.length === 0) {
         setContestQueue([]);
-        setQueueStatus("Aun no hay participantes registrados en canto");
+        setQueueStatus("Aún no hay participantes registrados en canto");
 
         return;
       }
@@ -295,7 +259,7 @@ export default function Escenario() {
             performerProfile?.stage_name ||
             (profile?.username ? `@${profile.username}` : `Participante ${index + 1}`),
           role: "En fila",
-          song: performerProfile?.genre || "Audicion de canto",
+          song: performerProfile?.genre || "Audición de canto",
           color: colors[index % colors.length],
           photoUrl: profile?.photo_url,
           city: profile?.city,
@@ -458,7 +422,7 @@ export default function Escenario() {
       setActivePerformer(signal.nextPerformerIndex);
 
       if (stageQueue[signal.nextPerformerIndex]?.userId === currentUserId) {
-        setLiveKitStatus("Es tu turno: activa tu microfono");
+        setLiveKitStatus("Es tu turno: activa tu micrófono");
       }
     }
 
@@ -474,6 +438,11 @@ export default function Escenario() {
   }
 
   function handleReaction(reaction: string) {
+    if (!roomOpen) {
+      setLiveKitStatus("Las reacciones se activan cuando el escenario está en vivo");
+      return;
+    }
+
     setReactionCount((current) => current + 1);
     pushRoomEvent(`Tu: ${reaction}`);
     void publishRoomSignal({
@@ -496,6 +465,11 @@ export default function Escenario() {
   }
 
   function handleVote() {
+    if (!roomOpen) {
+      setLiveKitStatus("La votación se activa cuando el escenario está en vivo");
+      return;
+    }
+
     if (votingOpen) {
       setVotes((current) => current + 1);
       pushRoomEvent("Tu voto fue enviado");
@@ -535,7 +509,7 @@ export default function Escenario() {
       headers,
       body: JSON.stringify({
         role,
-        identity: liveKitIdentity || (role === "performer" ? performer.name : ""),
+        identity: liveKitIdentity || (role === "performer" ? performer?.name ?? "" : ""),
         code: "",
       }),
     });
@@ -645,7 +619,7 @@ export default function Escenario() {
 
   async function handleOpenStage() {
     if (!canModerateStage) {
-      setLiveKitStatus("Solo el moderador en turno puede encender el live");
+      setLiveKitStatus("Solo el moderador en turno puede encender el en vivo");
 
       return;
     }
@@ -683,13 +657,13 @@ export default function Escenario() {
 
     setRoomOpen(true);
     pushRoomEvent("Escenario abierto por participante registrado");
-    setLiveKitStatus("Escenario live: la audiencia ya puede entrar");
+    setLiveKitStatus("Escenario en vivo: la audiencia ya puede entrar");
     await handleStartPublishing();
   }
 
   async function handleCloseStage() {
     if (!isFinalModerator) {
-      setLiveKitStatus("Solo el ultimo moderador puede apagar el live");
+      setLiveKitStatus("Solo el último moderador puede apagar el en vivo");
 
       return;
     }
@@ -723,7 +697,7 @@ export default function Escenario() {
     await handleLiveKitDisconnect();
     setRoomOpen(false);
     setMicPassed(false);
-    pushRoomEvent("Live apagado por ultimo moderador");
+    pushRoomEvent("En vivo apagado por último moderador");
     setLiveKitStatus("Escenario cerrado");
   }
 
@@ -749,7 +723,7 @@ export default function Escenario() {
     }
 
     if (!canModerateStage) {
-      setLiveKitStatus("Tu mic/camara se activa solo cuando llega tu turno");
+      setLiveKitStatus("Tu mic/cámara se activa solo cuando llega tu turno");
 
       return;
     }
@@ -794,13 +768,13 @@ export default function Escenario() {
 
   async function handlePassMicrophone() {
     if (!canModerateStage) {
-      setLiveKitStatus("Solo el moderador en turno puede pasar el microfono");
+      setLiveKitStatus("Solo el moderador en turno puede pasar el micrófono");
 
       return;
     }
 
     if (!hasNextPerformer) {
-      setLiveKitStatus("Este es el ultimo turno. Apaga el live al terminar.");
+      setLiveKitStatus("Este es el último turno. Apaga el en vivo al terminar.");
 
       return;
     }
@@ -817,7 +791,7 @@ export default function Escenario() {
       nextPerformerIndex,
       sender: liveKitIdentity.trim() || connectedRole || "performer",
     });
-    pushRoomEvent("Microfono pasado al siguiente participante");
+    pushRoomEvent("Micrófono pasado al siguiente participante");
   }
 
   async function handleLiveKitDisconnect() {
@@ -860,16 +834,16 @@ export default function Escenario() {
     <main className="scenario-page">
       <section className="scenario-hero" aria-labelledby="scenario-title">
         <div className="scenario-copy">
-          <p className="scenario-eyebrow">Escenario live ET</p>
+          <p className="scenario-eyebrow">Escenario en vivo ET</p>
           <h1 id="scenario-title" className="scenario-title">
-            <span>Proximamente</span>
+            <span>Próximamente</span>
             <strong>Voces</strong>
             <em>Debut</em>
           </h1>
           <p className="scenario-date">Julio 15</p>
           <p className="scenario-description">
             No te lo pierdas. Un teatro digital para escuchar, cantar y vivir
-            presentaciones estilo live room con artistas al frente y oyentes
+            presentaciones estilo sala en vivo con artistas al frente y oyentes
             reaccionando en tiempo real.
           </p>
 
@@ -880,7 +854,7 @@ export default function Escenario() {
               onClick={handleJoin}
               aria-pressed={joined}
             >
-              {joined ? "You are in" : "Join event"}
+              {joined ? "Ya estás dentro" : "Unirme al evento"}
             </button>
             <a href="#live-room" className="watch-stage-link">
               Ver escenario
@@ -890,25 +864,25 @@ export default function Escenario() {
 
         <div className="scenario-live-panel" aria-label="Estado del evento">
           <div className="live-dot" />
-          <span>{roomOpen ? "room open" : "room standby"}</span>
-          <span>{liveListeners} listeners</span>
+          <span>{roomOpen ? "sala abierta" : "sala en espera"}</span>
+          <span>{liveListeners} oyentes</span>
           <span>{liveKitParticipants} livekit</span>
-          <span>{stageQueue.length} performers</span>
+          <span>{stageQueue.length} participantes</span>
         </div>
       </section>
 
-      <section id="live-room" className="theater-shell" aria-label="Escenario live">
+      <section id="live-room" className="theater-shell" aria-label="Escenario en vivo">
         <div className="theater-sign">
           <span>ET Live</span>
           <strong>Voces Debut</strong>
           <span>15 Julio</span>
         </div>
 
-        <div className="livekit-status" aria-label="LiveKit room status">
-          <span>LiveKit ready</span>
+        <div className="livekit-status" aria-label="Estado de la sala LiveKit">
+          <span>LiveKit listo</span>
           <strong>{liveKitStatus}</strong>
-          <span>{activeSpeakers.length ? activeSpeakers.join(", ") : "sin speakers"}</span>
-          <em>{votingOpen ? "Votacion activa" : "Votacion cerrada"}</em>
+          <span>{activeSpeakers.length ? activeSpeakers.join(", ") : "sin voces activas"}</span>
+          <em>{votingOpen ? "Votación activa" : "Votación cerrada"}</em>
         </div>
 
         <div className="stage-lights" aria-hidden="true">
@@ -929,43 +903,50 @@ export default function Escenario() {
 
         <div className="main-stage">
           <div className="performer-row">
-            {stageQueue.map((item, index) => (
-              <div
-                key={item.userId ?? item.name}
-                className={`performer ${activePerformer === index ? "is-active" : ""} ${
-                  item.userId === currentUserId ? "is-mine" : ""
-                }`}
-                style={{ "--performer-color": item.color } as React.CSSProperties}
-              >
-                <span className="performer-spotlight" />
-                <span className="performer-avatar">
-                  {item.photoUrl ? (
-                    <Image
-                      src={item.photoUrl}
-                      alt=""
-                      className="performer-photo"
-                      width={58}
-                      height={58}
-                      unoptimized
-                    />
-                  ) : (
-                    <span className="performer-head">
-                      {item.name.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
-                  <span className="performer-body" />
-                  <span className="performer-mic" />
-                </span>
-                <strong>{item.name}</strong>
-                <small>
-                  {item.userId === currentUserId
-                    ? activePerformer === index
-                      ? "Tu turno"
-                      : "En tu fila"
-                    : item.role}
-                </small>
+            {stageQueue.length ? (
+              stageQueue.map((item, index) => (
+                <div
+                  key={item.userId ?? item.name}
+                  className={`performer ${activePerformer === index ? "is-active" : ""} ${
+                    item.userId === currentUserId ? "is-mine" : ""
+                  }`}
+                  style={{ "--performer-color": item.color } as React.CSSProperties}
+                >
+                  <span className="performer-spotlight" />
+                  <span className="performer-avatar">
+                    {item.photoUrl ? (
+                      <Image
+                        src={item.photoUrl}
+                        alt=""
+                        className="performer-photo"
+                        width={58}
+                        height={58}
+                        unoptimized
+                      />
+                    ) : (
+                      <span className="performer-head">
+                        {item.name.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="performer-body" />
+                    <span className="performer-mic" />
+                  </span>
+                  <strong>{item.name}</strong>
+                  <small>
+                    {item.userId === currentUserId
+                      ? activePerformer === index
+                        ? "Tu turno"
+                        : "En tu fila"
+                      : item.role}
+                  </small>
+                </div>
+              ))
+            ) : (
+              <div className="empty-stage-message">
+                <strong>Esperando al primer participante registrado</strong>
+                <span>Únete a un concurso para aparecer en la fila oficial del escenario.</span>
               </div>
-            ))}
+            )}
           </div>
 
           <div className="stage-camera-frame">
@@ -980,8 +961,8 @@ export default function Escenario() {
           </div>
 
           <div className="song-now">
-            <span>{roomOpen ? "Now performing" : "Fila preparada"}</span>
-            <strong>{performer.song}</strong>
+            <span>{roomOpen ? "Presentándose ahora" : "Fila preparada"}</span>
+            <strong>{performer?.song ?? "Esperando datos oficiales de audición"}</strong>
           </div>
 
           <div className="audio-wave" aria-hidden="true">
@@ -992,26 +973,35 @@ export default function Escenario() {
         </div>
 
         <div className="audience-floor" aria-label="Oyentes en vivo">
-          {listeners.map((listener, index) => (
-            <span
-              key={listener}
-              className="listener-seat"
-              style={{ "--seat": index } as React.CSSProperties}
-              title={`${listener} is listening`}
-            >
-              {listener.slice(0, 1)}
-            </span>
-          ))}
+          {liveListeners > 0 ? (
+            Array.from({ length: Math.min(liveListeners, 12) }).map((_, index) => (
+              <span
+                key={index}
+                className="listener-seat"
+                style={{ "--seat": index } as React.CSSProperties}
+                title="Oyente en vivo"
+              >
+                ET
+              </span>
+            ))
+          ) : (
+            <span className="audience-empty">La audiencia se abre cuando la sala entra en vivo</span>
+          )}
         </div>
 
         <div className="live-controls" aria-label="Controles de la sala">
           <div>
-            <span className="controls-label">Live room</span>
-            <strong>{reactionCount} reactions</strong>
+            <span className="controls-label">Sala en vivo</span>
+            <strong>{reactionCount} reacciones</strong>
           </div>
           <div className="reaction-buttons">
             {reactions.map((reaction) => (
-              <button key={reaction} type="button" onClick={() => handleReaction(reaction)}>
+              <button
+                key={reaction}
+                type="button"
+                disabled={!roomOpen}
+                onClick={() => handleReaction(reaction)}
+              >
                 {reaction}
               </button>
             ))}
@@ -1021,22 +1011,30 @@ export default function Escenario() {
 
       <section className="competitor-room" aria-label="Sala de competidores">
         <div className="ops-grid">
-          <section className="ops-panel" aria-label="Performer access">
+          <section className="ops-panel" aria-label="Acceso de participantes">
             <div className="ops-heading">
               <span>Fila de canto</span>
               <strong>{isMyTurn ? "Tu turno" : "En espera"}</strong>
             </div>
             <div className="queue-list" aria-label="Cola de participantes">
-              {stageQueue.map((item, index) => (
-                <div
-                  key={item.userId ?? item.name}
-                  className={activePerformer === index ? "is-active" : ""}
-                >
-                  <span>{index + 1}</span>
-                  <strong>{item.name}</strong>
-                  <em>{item.userId === currentUserId ? "yo" : item.song}</em>
+              {stageQueue.length ? (
+                stageQueue.map((item, index) => (
+                  <div
+                    key={item.userId ?? item.name}
+                    className={activePerformer === index ? "is-active" : ""}
+                  >
+                    <span>{index + 1}</span>
+                    <strong>{item.name}</strong>
+                    <em>{item.userId === currentUserId ? "yo" : item.song}</em>
+                  </div>
+                ))
+              ) : (
+                <div>
+                  <span>0</span>
+                  <strong>Esperando participantes</strong>
+                  <em>Únete desde Concursos</em>
                 </div>
-              ))}
+              )}
             </div>
             {!currentUserRegistered ? (
               <Link className="publish-button" href="/concursos">
@@ -1060,24 +1058,24 @@ export default function Escenario() {
               <span>
                 {currentUserRegistered
                   ? "Registrado en canto"
-                  : "Necesitas estar registrado en canto para abrir live"}
+                  : "Necesitas estar registrado en canto para abrir el en vivo"}
               </span>
-              <span>{connectedRole === "performer" ? "Conectado a LiveKit" : "Sin conexion performer"}</span>
-              <span>{micPassed ? "Microfono activo" : "Listo para turno"}</span>
+              <span>{connectedRole === "performer" ? "Conectado a LiveKit" : "Sin conexión de participante"}</span>
+              <span>{micPassed ? "Micrófono activo" : "Listo para turno"}</span>
               <span>{muted ? "Silenciado por host" : "Canal listo"}</span>
             </div>
           </section>
 
-          <section className="ops-panel" aria-label="Audience voting">
+          <section className="ops-panel" aria-label="Votación de audiencia">
             <div className="ops-heading">
-              <span>Votacion en vivo</span>
+              <span>Votación en vivo</span>
               <strong>{votes} votos</strong>
             </div>
             <button
               type="button"
               className="vote-button"
               onClick={handleVote}
-              disabled={!votingOpen}
+              disabled={!votingOpen || !roomOpen}
             >
               Votar
             </button>
@@ -1085,10 +1083,10 @@ export default function Escenario() {
         </div>
 
         {canModerateStage || roomEvents.length ? (
-        <section className="livekit-console" aria-label="LiveKit connection">
+        <section className="livekit-console" aria-label="Conexión LiveKit">
           <div className="ops-heading">
             <span>Sala LiveKit</span>
-            <strong>{connectedRole ? connectedRole : "offline"}</strong>
+            <strong>{connectedRole ? connectedRole : "desconectado"}</strong>
           </div>
           <p className="livekit-note">
             La audiencia solo escucha y vota. Los controles aparecen para el
@@ -1103,10 +1101,10 @@ export default function Escenario() {
                     checked={cameraEnabledForTurn}
                     onChange={(event) => setCameraEnabledForTurn(event.target.checked)}
                   />
-                  Camara opcional
+                  Cámara opcional
                 </label>
                 <button type="button" onClick={handleStartPublishing}>
-                  {cameraEnabledForTurn ? "Encender mic/camara" : "Encender microfono"}
+                  {cameraEnabledForTurn ? "Encender mic/cámara" : "Encender micrófono"}
                 </button>
                 {hasNextPerformer ? (
                   <button
@@ -1114,15 +1112,15 @@ export default function Escenario() {
                     onClick={handlePassMicrophone}
                     disabled={!publishing || connectedRole !== "performer"}
                   >
-                    Pasar microfono
+                    Pasar micrófono
                   </button>
                 ) : null}
                 <button type="button" onClick={handleStopPublishing} disabled={!publishing}>
-                  Apagar microfono
+                  Apagar micrófono
                 </button>
                 {isFinalModerator ? (
                   <button type="button" onClick={handleCloseStage} disabled={!roomOpen}>
-                    Apagar live
+                    Apagar en vivo
                   </button>
                 ) : null}
               </>

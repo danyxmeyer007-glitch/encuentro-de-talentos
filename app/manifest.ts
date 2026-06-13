@@ -4,13 +4,14 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Encuentro de Talentos",
     short_name: "ET Talentos",
-    description: "Concursos, escenario live y camerino para artistas.",
+    description:
+      "Talent show app para descubrir artistas, subir audiciones, competir y subir rankings.",
     start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#020617",
-    theme_color: "#06172f",
+    background_color: "#111111",
+    theme_color: "#111111",
     categories: ["entertainment", "music", "social"],
     lang: "es-MX",
     icons: [

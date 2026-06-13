@@ -8,8 +8,7 @@ export default function ConditionalFooter() {
 
   if (
     pathname === "/camerino" ||
-    pathname === "/registro" ||
-    pathname === "/salon-de-la-fama"
+    pathname === "/registro"
   ) {
     return null;
   }

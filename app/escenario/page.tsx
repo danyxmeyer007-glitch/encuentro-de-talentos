@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import AppOnlyEscenario from "@/components/AppOnlyEscenario";
 
 export const metadata: Metadata = {
-  title: "Download App | Escenario Live ET",
+  title: "Escenario | Encuentro de Talentos",
   description:
-    "Instala la app Encuentro de Talentos para entrar al escenario live.",
+    "Instala Encuentro de Talentos para ver audiciones, concursos, rankings y escenario en vivo.",
   alternates: {
     canonical: "/escenario",
   },

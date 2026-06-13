@@ -1,873 +1,450 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useJoinedNavigation } from "@/lib/useJoinedNavigation";
+import { useEffect, useMemo, useState } from "react";
+import {
+  createSupabaseBrowserClient,
+  hasSupabaseBrowserConfig,
+} from "@/lib/supabase/client";
 
-export default function Home() {
-  const { isJoined, links } = useJoinedNavigation();
+type Profile = {
+  user_id: string;
+  name: string | null;
+  username: string;
+  photo_url: string | null;
+  country: string | null;
+  city: string | null;
+  bio: string | null;
+  talent_type: string | null;
+};
+
+type Performer = {
+  user_id: string;
+  stage_name: string | null;
+  genre: string | null;
+};
+
+type Registration = {
+  user_id: string;
+  contest_slug: string;
+};
+
+type Follow = {
+  following_id: string;
+};
+
+type StandaloneNavigator = Navigator & {
+  standalone?: boolean;
+};
+
+const contestSlug = "voz-piloto-2026";
+const maxVoiceParticipants = 10;
+const sections = [
+  { href: "#trending-talents", label: "Talentos destacados" },
+  { href: "#new-participants", label: "Nuevos participantes" },
+  { href: "#featured-mentors", label: "Mentores" },
+  { href: "#upcoming-auditions", label: "App oficial" },
+];
+const submitOptions = ["Canto", "Danza", "Actuación", "Instrumento", "Talento libre"];
+
+function isStandaloneApp() {
+  if (typeof window === "undefined") {
+    return false;
+  }
 
   return (
-    <main className="home-page">
-      <section className="hero-section">
-        <div className="hero-grid">
-          <div className="hero-content">
-            <p className="hero-eyebrow">Diviértete • Participa • Gana premios</p>
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    window.navigator.userAgent.includes("EncuentroTalentosAndroid") ||
+    (window.navigator as StandaloneNavigator).standalone === true
+  );
+}
 
-            <h1 className="hero-title">
-              <em>Encuentro</em>
-              <span>de</span>
-              <strong>Talentos</strong>
-            </h1>
+function getDisplayName(profile: Profile, performer?: Performer) {
+  return performer?.stage_name || profile.name || `@${profile.username}`;
+}
 
-            <p className="hero-description">
-              Una plataforma para descubrir talentos, participar en concursos,
-              recibir apoyo y conectar con nuevas oportunidades.
-            </p>
+function getSubline(profile: Profile, performer?: Performer) {
+  return performer?.genre || profile.talent_type || "Talento ET";
+}
 
-            {!isJoined && (
-              <Link href="/registro" className="hero-button">
-                Unirme
-              </Link>
-            )}
+export default function Home() {
+  const supabase = useMemo(
+    () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
+    [],
+  );
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [performers, setPerformers] = useState<Performer[]>([]);
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [follows, setFollows] = useState<Follow[]>([]);
+  const [isApp, setIsApp] = useState(false);
+  const [status, setStatus] = useState(
+    hasSupabaseBrowserConfig()
+      ? "Cargando datos reales de talentos"
+      : "Esperando conexión con Supabase para mostrar talentos reales",
+  );
+
+  useEffect(() => {
+    function syncDisplayMode() {
+      setIsApp(isStandaloneApp());
+    }
+
+    const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+
+    syncDisplayMode();
+    standaloneQuery.addEventListener("change", syncDisplayMode);
+
+    return () => {
+      standaloneQuery.removeEventListener("change", syncDisplayMode);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    let isActive = true;
+    const client = supabase;
+
+    async function loadHomeData() {
+      const [profilesResponse, registrationsResponse] = await Promise.all([
+        client
+          .from("profiles")
+          .select("user_id, name, username, photo_url, country, city, bio, talent_type")
+          .order("created_at", { ascending: false })
+          .limit(8),
+        client
+          .from("contest_registrations")
+          .select("user_id, contest_slug")
+          .eq("contest_slug", contestSlug)
+          .order("created_at", { ascending: true })
+          .limit(maxVoiceParticipants),
+      ]);
+
+      if (!isActive) {
+        return;
+      }
+
+      if (profilesResponse.error) {
+        setStatus(profilesResponse.error.message);
+        return;
+      }
+
+      if (registrationsResponse.error) {
+        setStatus(registrationsResponse.error.message);
+        return;
+      }
+
+      const visibleProfiles = (profilesResponse.data ?? []) as Profile[];
+      const visibleUserIds = visibleProfiles.map((profile) => profile.user_id);
+      const performerResponse = visibleUserIds.length
+        ? await client
+            .from("performer_profiles")
+            .select("user_id, stage_name, genre")
+            .in("user_id", visibleUserIds)
+        : { data: [], error: null };
+      const followsResponse = visibleUserIds.length
+        ? await client
+            .from("follows")
+            .select("following_id")
+            .in("following_id", visibleUserIds)
+        : { data: [], error: null };
+
+      if (!isActive) {
+        return;
+      }
+
+      if (performerResponse.error) {
+        setStatus(performerResponse.error.message);
+        return;
+      }
+
+      setProfiles(visibleProfiles);
+      setPerformers((performerResponse.data ?? []) as Performer[]);
+      setRegistrations((registrationsResponse.data ?? []) as Registration[]);
+      setFollows((followsResponse.data ?? []) as Follow[]);
+      setStatus(
+        visibleProfiles.length
+          ? "Datos reales de talentos cargados"
+          : "Esperando el primer perfil de la comunidad",
+      );
+    }
+
+    void loadHomeData();
+
+    return () => {
+      isActive = false;
+    };
+  }, [supabase]);
+
+  const performerByUser = new Map(
+    performers.map((performer) => [performer.user_id, performer]),
+  );
+  const contestUsers = new Set(registrations.map((item) => item.user_id));
+  const contestProfiles = profiles.filter((profile) =>
+    contestUsers.has(profile.user_id),
+  );
+  const featuredProfiles = contestProfiles.length ? contestProfiles : profiles;
+  const followerCounts = follows.reduce<Record<string, number>>((counts, follow) => {
+    counts[follow.following_id] = (counts[follow.following_id] ?? 0) + 1;
+    return counts;
+  }, {});
+
+  return (
+    <main className="talent-app">
+      <section className="featured-banner" aria-labelledby="home-title">
+        <div className="banner-copy">
+          <p className="eyebrow">Competencia activa</p>
+          <h1 id="home-title">Encuentro de Talentos</h1>
+          <p className="banner-text">
+            Una experiencia de talento para artistas reales: crea tu camerino,
+            sube tu audición, participa en concursos oficiales y gana tu lugar en el
+            Salón de la Fama.
+          </p>
+          <div className="banner-actions">
+            <Link href="/concursos" className="primary-action">
+              Entrar a concursos
+            </Link>
+            <Link href={isApp ? "/escenario" : "/legal"} className="secondary-action">
+              {isApp ? "Abrir escenario" : "Ver legal"}
+            </Link>
           </div>
+        </div>
 
-          <div className="hero-orbit-area">
-            <div className="et-carousel">
-              <div className="et-glow" />
-              <div className="et-ring et-ring-one" />
-              <div className="et-ring et-ring-two" />
-
-              <div className="et-logo">
-                <span>ET</span>
-              </div>
-
-              {links.map((link) => (
-                <Link
-                  href={link.href}
-                  className={`orbit-item ${link.orbitClass} ${link.toneClass}`}
-                  key={link.href}
-                >
-                  <span>{link.label}</span>
-                </Link>
-              ))}
+        <div className="phone-stage" aria-label="Vista previa de la app">
+          <div className="phone-frame">
+            <video
+              src="/videos/ETportada1.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="phone-video"
+            />
+            <div className="phone-overlay">
+              <span>Fila oficial</span>
+              <strong>{registrations.length}/{maxVoiceParticipants} voces</strong>
             </div>
+          </div>
+          <div className="prize-card">
+            <span>Premio</span>
+            <strong>$25,000</strong>
+            <small>MXN + showcase con mentores</small>
           </div>
         </div>
       </section>
 
-      <style>{`
-        .home-page {
-          min-height: 100vh;
-          min-height: 100svh;
-          overflow-x: clip;
-          overflow-y: auto;
-          background: linear-gradient(rgba(2, 6, 23, 0.22), rgba(2, 6, 23, 0.6));
-          color: white;
-        }
-
-        .hero-section {
-          position: relative;
-          min-height: 100vh;
-          min-height: 100svh;
-          display: flex;
-          align-items: center;
-          padding: 8rem max(1rem, env(safe-area-inset-left)) 3rem;
-        }
-
-        .hero-section::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          background:
-            radial-gradient(circle at 70% 40%, rgba(34, 211, 238, 0.18), transparent 34%),
-            radial-gradient(circle at 30% 70%, rgba(250, 204, 21, 0.16), transparent 36%),
-            radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.1), transparent 46%);
-          pointer-events: none;
-        }
-
-        .hero-grid {
-          position: relative;
-          z-index: 2;
-          width: 100%;
-          max-width: 1280px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 4rem;
-          align-items: center;
-        }
-
-        .hero-content {
-          padding: 2rem;
-          border-radius: 32px;
-          background: rgba(255, 255, 255, 0.035);
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          box-shadow:
-            0 0 24px rgba(250, 204, 21, 0.14),
-            inset 0 1px 0 rgba(255, 255, 255, 0.18);
-          overflow-wrap: anywhere;
-        }
-
-        .hero-eyebrow {
-          margin-bottom: 1.25rem;
-          font-size: 0.875rem;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.35em;
-          color: #67e8f9;
-        }
-
-        .hero-title {
-          margin: 0;
-          font-size: clamp(3.4rem, 8vw, 8rem);
-          line-height: 0.9;
-          font-weight: 1000;
-          text-transform: uppercase;
-          letter-spacing: -0.06em;
-          overflow-wrap: normal;
-        }
-
-        .hero-title span {
-          display: block;
-          color: #facc15;
-        }
-
-        .hero-title em,
-        .hero-title strong {
-          display: block;
-          background: linear-gradient(90deg, #38bdf8, #f472b6, #facc15, #ffffff);
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-          font-style: normal;
-        }
-
-        .hero-description {
-          margin-top: 1.5rem;
-          max-width: 36rem;
-          font-size: 1.125rem;
-          line-height: 1.8;
-          color: #67e8f9;
-          font-weight: 600;
-          filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.16));
-        }
-
-        .hero-button {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          margin-top: 2.5rem;
-          border-radius: 999px;
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 46%),
-            linear-gradient(90deg, #22d3ee, #ec4899, #facc15);
-          padding: 1rem 2rem;
-          color: white;
-          font-weight: 1000;
-          text-transform: uppercase;
-          text-decoration: none;
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
-          box-shadow:
-            0 0 30px rgba(34, 211, 238, 0.3),
-            0 0 38px rgba(250, 204, 21, 0.32),
-            inset 0 1px 0 rgba(255, 255, 255, 0.45);
-          transition: 0.35s cubic-bezier(.2,.8,.2,1);
-        }
-
-        .hero-button:hover {
-          transform: translateY(-4px) scale(1.05);
-          box-shadow:
-            0 0 42px rgba(34, 211, 238, 0.72),
-            0 0 70px rgba(236, 72, 153, 0.42),
-            0 18px 50px rgba(250, 204, 21, 0.28);
-        }
-
-        .hero-orbit-area {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .et-carousel {
-          position: relative;
-          width: min(86vw, 520px);
-          height: min(86vw, 520px);
-          flex: 0 0 auto;
-          border-radius: 999px;
-        }
-
-        .et-carousel:hover .orbit-item,
-        .et-carousel:hover .et-ring-two {
-          animation-play-state: paused;
-        }
-
-        .et-glow {
-          position: absolute;
-          inset: 40px;
-          border-radius: 999px;
-          background:
-            radial-gradient(circle at 30% 35%, rgba(34, 211, 238, 0.06), transparent 48%),
-            radial-gradient(circle at 70% 35%, rgba(236, 72, 153, 0.05), transparent 52%),
-            radial-gradient(circle at 50% 70%, rgba(250, 204, 21, 0.06), transparent 62%);
-          filter: blur(12px);
-          opacity: 0.42;
-          animation: magicGlow 5s ease-in-out infinite;
-        }
-
-        .et-ring {
-          position: absolute;
-          border-radius: 999px;
-          pointer-events: none;
-        }
-
-        .et-ring-one {
-          inset: 0;
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          box-shadow:
-            0 0 24px rgba(250, 204, 21, 0.14),
-            inset 0 1px 0 rgba(255, 255, 255, 0.18);
-        }
-
-        .et-ring-two {
-          inset: 90px;
-          border: 1px dashed rgba(255, 255, 255, 0.16);
-          box-shadow:
-            0 0 24px rgba(250, 204, 21, 0.14),
-            inset 0 1px 0 rgba(255, 255, 255, 0.18);
-          animation: spinRing 16s linear infinite;
-        }
-
-        .et-logo {
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          z-index: 20;
-          width: 176px;
-          height: 176px;
-          transform: translate(-50%, -50%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 46px;
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          background: rgba(255, 255, 255, 0.035);
-          box-shadow:
-            0 0 24px rgba(250, 204, 21, 0.14),
-            inset 0 1px 0 rgba(255, 255, 255, 0.18);
-          animation: logoFloat 4s ease-in-out infinite;
-        }
-
-        .et-logo span {
-          font-size: 4rem;
-          font-weight: 1000;
-          letter-spacing: -0.12em;
-          padding-right: 0.12em;
-          background: linear-gradient(135deg, #ffffff 5%, #22d3ee 32%, #ec4899 62%, #facc15 92%);
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-          filter:
-            drop-shadow(0 0 6px rgba(34, 211, 238, 0.28))
-            drop-shadow(0 0 10px rgba(250, 204, 21, 0.22));
-        }
-
-        .orbit-item {
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          z-index: 10;
-          color: white;
-          text-decoration: none;
-          animation-duration: 24s;
-          animation-timing-function: linear;
-          animation-iteration-count: infinite;
-          will-change: transform;
-        }
-
-        .orbit-item span {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 135px;
-          padding: 13px 22px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.22);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 46%),
-            linear-gradient(90deg, rgba(34, 211, 238, 0.78), rgba(236, 72, 153, 0.72), rgba(250, 204, 21, 0.78));
-          color: white;
-          font-weight: 900;
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.34);
-          position: relative;
-          gap: 10px;
-          box-shadow:
-            0 0 24px rgba(34, 211, 238, 0.24),
-            0 0 28px rgba(250, 204, 21, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3);
-          transition:
-            scale 0.35s cubic-bezier(.2,.8,.2,1),
-            translate 0.35s cubic-bezier(.2,.8,.2,1),
-            border-color 0.35s ease,
-            background 0.35s ease,
-            box-shadow 0.35s ease;
-        }
-
-        .orbit-item span::before,
-        .orbit-item span::after {
-          content: "";
-          box-sizing: border-box;
-          display: block;
-          flex: 0 0 auto;
-        }
-
-        .orbit-home span {
-          min-width: 116px;
-          border-radius: 999px 26px 999px 999px;
-        }
-
-        .orbit-home span::before {
-          width: 24px;
-          height: 20px;
-          border: 2px solid rgba(255, 255, 255, 0.86);
-          border-top: 0;
-          border-radius: 4px;
-          background: linear-gradient(rgba(255, 255, 255, 0.18), transparent);
-          transform: rotate(45deg);
-        }
-
-        .orbit-contests span {
-          min-width: 152px;
-          border-radius: 999px 999px 999px 26px;
-        }
-
-        .orbit-contests span::before {
-          width: 15px;
-          height: 23px;
-          border: 2px solid rgba(255, 255, 255, 0.86);
-          border-radius: 999px 999px 9px 9px;
-          background:
-            linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06));
-          box-shadow:
-            0 9px 0 -5px rgba(255, 255, 255, 0.86),
-            0 14px 0 -6px rgba(255, 255, 255, 0.72);
-        }
-
-        .orbit-categories span {
-          min-width: 126px;
-          min-height: 74px;
-          border-radius: 24px;
-        }
-
-        .orbit-categories span::before {
-          width: 28px;
-          height: 22px;
-          border: 2px solid rgba(255, 255, 255, 0.86);
-          border-radius: 6px;
-          background:
-            linear-gradient(90deg, transparent 46%, rgba(255, 255, 255, 0.82) 46% 54%, transparent 54%),
-            linear-gradient(rgba(255, 255, 255, 0.16), transparent);
-        }
-
-        .orbit-mentors span {
-          min-width: 142px;
-          border-radius: 999px 999px 24px 999px;
-        }
-
-        .orbit-mentors span::before {
-          width: 30px;
-          height: 22px;
-          border: 2px solid rgba(255, 255, 255, 0.86);
-          border-radius: 5px;
-          background:
-            linear-gradient(rgba(255, 255, 255, 0.14), transparent),
-            linear-gradient(90deg, transparent 0 38%, rgba(255, 255, 255, 0.55) 38% 44%, transparent 44%),
-            linear-gradient(0deg, transparent 0 55%, rgba(255, 255, 255, 0.45) 55% 61%, transparent 61%);
-          box-shadow:
-            8px -8px 0 -5px rgba(255, 255, 255, 0.9);
-        }
-
-        .orbit-participate span {
-          min-width: 150px;
-          clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
-          border-radius: 16px;
-        }
-
-        .orbit-participate span::before {
-          width: 31px;
-          height: 22px;
-          border: 2px solid rgba(255, 255, 255, 0.86);
-          border-radius: 7px;
-          background:
-            radial-gradient(circle, transparent 0 4px, rgba(255, 255, 255, 0.86) 4.5px 6px, transparent 6.5px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.76) 0 8px, transparent 8px),
-            linear-gradient(rgba(255, 255, 255, 0.14), transparent);
-        }
-
-        .orbit-about span {
-          width: 92px;
-          min-width: 92px;
-          height: 92px;
-          border-radius: 999px;
-          padding: 0;
-          flex-direction: column;
-          gap: 5px;
-          font-size: 0.72rem;
-        }
-
-        .orbit-about span::before {
-          width: 26px;
-          height: 26px;
-          border: 2px solid rgba(255, 255, 255, 0.86);
-          border-radius: 999px;
-          box-shadow:
-            10px 10px 0 -8px rgba(255, 255, 255, 0.86);
-          transform: rotate(-8deg);
-        }
-
-        .orbit-about span::after {
-          display: none;
-        }
-
-        .orbit-item:hover {
-          z-index: 50;
-        }
-
-        .orbit-item:hover span {
-          scale: 1.18;
-          translate: 0 -3px;
-          border-color: rgba(255, 255, 255, 0.42);
-          background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 46%),
-            linear-gradient(90deg, #22d3ee, #ec4899, #facc15);
-          box-shadow:
-            0 0 38px rgba(34, 211, 238, 0.85),
-            0 0 58px rgba(236, 72, 153, 0.42),
-            0 0 80px rgba(250, 204, 21, 0.38),
-            inset 0 1px 0 rgba(255, 255, 255, 0.35);
-        }
-
-        .orbit-one {
-          animation-name: orbitOne;
-        }
-
-        .orbit-two {
-          animation-name: orbitTwo;
-        }
-
-        .orbit-three {
-          animation-name: orbitThree;
-        }
-
-        .orbit-four {
-          animation-name: orbitFour;
-        }
-
-        .orbit-five {
-          animation-name: orbitFive;
-        }
-
-        .orbit-six {
-          animation-name: orbitSix;
-        }
-
-        .orbit-seven {
-          animation-name: orbitSeven;
-        }
-
-        .orbit-eight {
-          animation-name: orbitEight;
-        }
-
-        @keyframes orbitOne {
-          from {
-            transform: translate(-50%, -50%) rotate(0deg) translateX(220px) rotate(0deg);
-          }
-          to {
-            transform: translate(-50%, -50%) rotate(360deg) translateX(220px) rotate(-360deg);
-          }
-        }
-
-        @keyframes orbitTwo {
-          from {
-            transform: translate(-50%, -50%) rotate(90deg) translateX(220px) rotate(-90deg);
-          }
-          to {
-            transform: translate(-50%, -50%) rotate(450deg) translateX(220px) rotate(-450deg);
-          }
-        }
-
-        @keyframes orbitThree {
-          from {
-            transform: translate(-50%, -50%) rotate(180deg) translateX(220px) rotate(-180deg);
-          }
-          to {
-            transform: translate(-50%, -50%) rotate(540deg) translateX(220px) rotate(-540deg);
-          }
-        }
-
-        @keyframes orbitFour {
-          from {
-            transform: translate(-50%, -50%) rotate(270deg) translateX(220px) rotate(-270deg);
-          }
-          to {
-            transform: translate(-50%, -50%) rotate(630deg) translateX(220px) rotate(-630deg);
-          }
-        }
-
-        @keyframes orbitFive {
-          from {
-            transform: translate(-50%, -50%) rotate(45deg) translateX(168px) rotate(-45deg);
-          }
-          to {
-            transform: translate(-50%, -50%) rotate(405deg) translateX(168px) rotate(-405deg);
-          }
-        }
-
-        @keyframes orbitSix {
-          from {
-            transform: translate(-50%, -50%) rotate(135deg) translateX(168px) rotate(-135deg);
-          }
-          to {
-            transform: translate(-50%, -50%) rotate(495deg) translateX(168px) rotate(-495deg);
-          }
-        }
-
-        @keyframes orbitSeven {
-          from {
-            transform: translate(-50%, -50%) rotate(225deg) translateX(168px) rotate(-225deg);
-          }
-          to {
-            transform: translate(-50%, -50%) rotate(585deg) translateX(168px) rotate(-585deg);
-          }
-        }
-
-        @keyframes orbitEight {
-          from {
-            transform: translate(-50%, -50%) rotate(315deg) translateX(168px) rotate(-315deg);
-          }
-          to {
-            transform: translate(-50%, -50%) rotate(675deg) translateX(168px) rotate(-675deg);
-          }
-        }
-
-        @keyframes spinRing {
-          from {
-            transform: rotate(360deg);
-          }
-          to {
-            transform: rotate(0deg);
-          }
-        }
-
-        @keyframes logoFloat {
-          0%, 100% {
-            transform: translate(-50%, -50%) scale(1);
-          }
-          50% {
-            transform: translate(-50%, -54%) scale(1.06);
-          }
-        }
-
-        @keyframes magicGlow {
-          0%, 100% {
-            opacity: 0.28;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.46;
-            transform: scale(1.04);
-          }
-        }
-
-        @media (max-width: 900px) {
-          .hero-grid {
-            grid-template-columns: 1fr;
-            gap: 2rem;
-            text-align: center;
-          }
-
-          .hero-content {
-            padding: 1.5rem;
-            border-radius: 24px;
-          }
-
-          .hero-eyebrow {
-            letter-spacing: 0.18em;
-          }
-
-          .hero-title {
-            font-size: clamp(2.7rem, 15vw, 5.8rem);
-          }
-
-          .hero-description {
-            margin-left: auto;
-            margin-right: auto;
-          }
-
-          .et-carousel {
-            width: min(88vw, 380px);
-            height: min(88vw, 380px);
-          }
-
-          .et-logo {
-            width: 135px;
-            height: 135px;
-            border-radius: 34px;
-          }
-
-          .et-logo span {
-            font-size: 3rem;
-          }
-
-          .et-ring-two {
-            inset: 65px;
-          }
-
-          .orbit-item span {
-            min-width: 100px;
-            padding: 10px 14px;
-            font-size: 0.78rem;
-          }
-
-          @keyframes orbitOne {
-            from {
-              transform: translate(-50%, -50%) rotate(0deg) translateX(160px) rotate(0deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(360deg) translateX(160px) rotate(-360deg);
-            }
-          }
-
-          @keyframes orbitTwo {
-            from {
-              transform: translate(-50%, -50%) rotate(90deg) translateX(160px) rotate(-90deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(450deg) translateX(160px) rotate(-450deg);
-            }
-          }
-
-          @keyframes orbitThree {
-            from {
-              transform: translate(-50%, -50%) rotate(180deg) translateX(160px) rotate(-180deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(540deg) translateX(160px) rotate(-540deg);
-            }
-          }
-
-          @keyframes orbitFour {
-            from {
-              transform: translate(-50%, -50%) rotate(270deg) translateX(160px) rotate(-270deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(630deg) translateX(160px) rotate(-630deg);
-            }
-          }
-
-          @keyframes orbitFive {
-            from {
-              transform: translate(-50%, -50%) rotate(45deg) translateX(122px) rotate(-45deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(405deg) translateX(122px) rotate(-405deg);
-            }
-          }
-
-          @keyframes orbitSix {
-            from {
-              transform: translate(-50%, -50%) rotate(135deg) translateX(122px) rotate(-135deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(495deg) translateX(122px) rotate(-495deg);
-            }
-          }
-
-          @keyframes orbitSeven {
-            from {
-              transform: translate(-50%, -50%) rotate(225deg) translateX(122px) rotate(-225deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(585deg) translateX(122px) rotate(-585deg);
-            }
-          }
-
-          @keyframes orbitEight {
-            from {
-              transform: translate(-50%, -50%) rotate(315deg) translateX(122px) rotate(-315deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(675deg) translateX(122px) rotate(-675deg);
-            }
-          }
-        }
-
-        @media (max-width: 480px) {
-          .hero-section {
-            align-items: flex-start;
-            padding-top: 7rem;
-          }
-
-          .hero-content {
-            padding: 1.2rem;
-          }
-
-          .hero-description {
-            font-size: 1rem;
-            line-height: 1.65;
-          }
-
-          .hero-button {
-            width: 100%;
-            margin-top: 1.6rem;
-            padding-inline: 1rem;
-          }
-
-          .et-carousel {
-            width: min(90vw, 320px);
-            height: min(90vw, 320px);
-          }
-
-          .et-logo {
-            width: 112px;
-            height: 112px;
-            border-radius: 28px;
-          }
-
-          .et-logo span {
-            font-size: 2.45rem;
-          }
-
-          .et-ring-two {
-            inset: 54px;
-          }
-
-          .orbit-item span {
-            min-width: 86px;
-            padding: 8px 10px;
-            font-size: 0.68rem;
-          }
-
-          .orbit-about span {
-            width: 72px;
-            min-width: 72px;
-            height: 72px;
-          }
-
-          @keyframes orbitOne {
-            from {
-              transform: translate(-50%, -50%) rotate(0deg) translateX(132px) rotate(0deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(360deg) translateX(132px) rotate(-360deg);
-            }
-          }
-
-          @keyframes orbitTwo {
-            from {
-              transform: translate(-50%, -50%) rotate(90deg) translateX(132px) rotate(-90deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(450deg) translateX(132px) rotate(-450deg);
-            }
-          }
-
-          @keyframes orbitThree {
-            from {
-              transform: translate(-50%, -50%) rotate(180deg) translateX(132px) rotate(-180deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(540deg) translateX(132px) rotate(-540deg);
-            }
-          }
-
-          @keyframes orbitFour {
-            from {
-              transform: translate(-50%, -50%) rotate(270deg) translateX(132px) rotate(-270deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(630deg) translateX(132px) rotate(-630deg);
-            }
-          }
-
-          @keyframes orbitFive {
-            from {
-              transform: translate(-50%, -50%) rotate(45deg) translateX(102px) rotate(-45deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(405deg) translateX(102px) rotate(-405deg);
-            }
-          }
-
-          @keyframes orbitSix {
-            from {
-              transform: translate(-50%, -50%) rotate(135deg) translateX(102px) rotate(-135deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(495deg) translateX(102px) rotate(-495deg);
-            }
-          }
-
-          @keyframes orbitSeven {
-            from {
-              transform: translate(-50%, -50%) rotate(225deg) translateX(102px) rotate(-225deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(585deg) translateX(102px) rotate(-585deg);
-            }
-          }
-
-          @keyframes orbitEight {
-            from {
-              transform: translate(-50%, -50%) rotate(315deg) translateX(102px) rotate(-315deg);
-            }
-            to {
-              transform: translate(-50%, -50%) rotate(675deg) translateX(102px) rotate(-675deg);
-            }
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .orbit-item,
-          .et-ring-two,
-          .et-logo,
-          .et-glow {
-            animation: none;
-          }
-
-          .orbit-one {
-            transform: translate(-50%, -50%) rotate(0deg) translateX(min(42vw, 220px)) rotate(0deg);
-          }
-
-          .orbit-two {
-            transform: translate(-50%, -50%) rotate(90deg) translateX(min(42vw, 220px)) rotate(-90deg);
-          }
-
-          .orbit-three {
-            transform: translate(-50%, -50%) rotate(180deg) translateX(min(42vw, 220px)) rotate(-180deg);
-          }
-
-          .orbit-four {
-            transform: translate(-50%, -50%) rotate(270deg) translateX(min(42vw, 220px)) rotate(-270deg);
-          }
-
-          .orbit-five {
-            transform: translate(-50%, -50%) rotate(45deg) translateX(min(32vw, 168px)) rotate(-45deg);
-          }
-
-          .orbit-six {
-            transform: translate(-50%, -50%) rotate(135deg) translateX(min(32vw, 168px)) rotate(-135deg);
-          }
-
-          .orbit-seven {
-            transform: translate(-50%, -50%) rotate(225deg) translateX(min(32vw, 168px)) rotate(-225deg);
-          }
-
-          .orbit-eight {
-            transform: translate(-50%, -50%) rotate(315deg) translateX(min(32vw, 168px)) rotate(-315deg);
-          }
-        }
-      `}</style>
+      <section className="quick-sections" aria-label="Secciones">
+        {sections.map((section) => (
+          <Link href={section.href} key={section.href}>
+            {section.label}
+          </Link>
+        ))}
+      </section>
+
+      <section className="content-grid">
+        <div className="main-feed">
+          <section id="trending-talents" className="panel">
+            <div className="section-heading">
+              <p>Perfiles del camerino</p>
+              <h2>Talentos reales de la comunidad</h2>
+            </div>
+
+            {featuredProfiles.length ? (
+              <div className="talent-row">
+                {featuredProfiles.map((profile) => {
+                  const performer = performerByUser.get(profile.user_id);
+                  const displayName = getDisplayName(profile, performer);
+
+                  return (
+                    <article className="talent-card" key={profile.user_id}>
+                      <div
+                        className="cover-gradient real-talent-cover"
+                        style={
+                          profile.photo_url
+                            ? { backgroundImage: `url(${profile.photo_url})` }
+                            : undefined
+                        }
+                      >
+                        <div className="play-button" aria-hidden="true" />
+                        <span>{getSubline(profile, performer)}</span>
+                      </div>
+                      <div className="talent-info">
+                        <div
+                          className="avatar"
+                          aria-hidden="true"
+                          style={
+                            profile.photo_url
+                              ? { backgroundImage: `url(${profile.photo_url})` }
+                              : undefined
+                          }
+                        >
+                          {profile.photo_url ? "" : displayName.slice(0, 1)}
+                        </div>
+                        <div>
+                          <h3>{displayName}</h3>
+                          <p>
+                            {followerCounts[profile.user_id] ?? 0} fans
+                          </p>
+                        </div>
+                        <strong>{contestUsers.has(profile.user_id) ? "En escenario" : "Nuevo"}</strong>
+                      </div>
+                      <dl className="talent-meta">
+                        <div>
+                          <dt>Categoría</dt>
+                          <dd>{profile.talent_type || "Sin categoría todavía"}</dd>
+                        </div>
+                        <div>
+                          <dt>Ubicación</dt>
+                          <dd>
+                            {[profile.city, profile.country].filter(Boolean).join(", ") ||
+                              "No compartida todavía"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Camerino</dt>
+                          <dd>{profile.bio ? "Perfil listo" : "Falta bio"}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                title="Esperando al primer talento"
+                text="Crea tu camerino y tu perfil podrá convertirse en la primera tarjeta real de esta sección."
+                actionHref="/registro"
+                actionLabel="Unirme ahora"
+              />
+            )}
+          </section>
+
+          <section id="escenario-preview" className="panel scenario-panel">
+            <div className="section-heading">
+              <p>Escenario de competencia</p>
+              <h2>{isApp ? "Escenario en vivo" : "El escenario abre dentro de la app"}</h2>
+            </div>
+            <div className="scenario-card">
+              <div className="scenario-cover">
+                <Image
+                  src="/et-portada.png"
+                  alt="Portada del concurso Encuentro de Talentos"
+                  fill
+                  sizes="(max-width: 900px) 90vw, 380px"
+                  className="object-cover"
+                />
+              </div>
+              <div className="scenario-copy">
+                <p className="eyebrow">Voz Piloto 2026</p>
+                <h3>Concursos, jurado, premio y reglas</h3>
+                <p>
+                  El sitio público muestra descubrimiento, registro, legal y comunidad.
+                  La entrada al escenario en vivo aparece dentro de la app instalada,
+                  donde tiene sentido pedir cámara y micrófono.
+                </p>
+                <div className="rule-grid">
+                  <span>Fila: {registrations.length}/{maxVoiceParticipants}</span>
+                  <span>Jurado: pronto</span>
+                  <span>Mentores: aplicaciones abiertas</span>
+                  <span>Votos: esperando datos en vivo</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="featured-mentors" className="panel">
+            <div className="section-heading">
+              <p>Red de mentores</p>
+              <h2>Mentores, jurados e invitados especiales llegan pronto</h2>
+            </div>
+            <EmptyState
+              title="Aún no hay mentores oficiales publicados"
+              text="Aquí aparecerán perfiles reales, videos de consejos, sesiones en vivo y disponibilidad de retroalimentación cuando el equipo esté aprobado."
+              actionHref="/mentores"
+              actionLabel="Aplicar o ver avances"
+            />
+          </section>
+        </div>
+
+        <aside className="side-rail" aria-label="Subir talento y rankings">
+          <section id="new-participants" className="submit-panel">
+            <p className="eyebrow">Subir talento</p>
+            <h2>Flujo de audición</h2>
+            <div className="submit-options">
+              {submitOptions.map((option) => (
+                <button type="button" key={option}>
+                  {option}
+                </button>
+              ))}
+            </div>
+            <ol>
+              <li>Graba tu video</li>
+              <li>Sube tu muestra</li>
+              <li>Agrega título</li>
+              <li>Elige competencia</li>
+            </ol>
+            <Link href="/concursos" className="center-submit">
+              Iniciar audición
+            </Link>
+          </section>
+
+          <section id="rankings" className="ranking-panel">
+            <p className="eyebrow">Salón de la Fama</p>
+            <h2>Ranking</h2>
+            <div className="rank-tabs" aria-label="Categorías del ranking">
+              <span>Top 10</span>
+              <span>Regional</span>
+              <span>Categoría</span>
+            </div>
+            <EmptyState
+              title="Rankings esperando votos"
+              text="Puntajes, vistas y votos aparecerán cuando existan datos reales del concurso en vivo."
+              actionHref="/salon-de-la-fama"
+              actionLabel="Abrir salón"
+            />
+          </section>
+        </aside>
+      </section>
+
+      <section id="upcoming-auditions" className="apk-band">
+        <div>
+          <p className="eyebrow">App + sitio web</p>
+          <h2>Instala el escenario en tu teléfono</h2>
+          <p>
+            El sitio mantiene pública la información legal y de comunidad. El APK
+            abre la experiencia de talento con acceso protegido antes de Camerino y
+            Escenario.
+          </p>
+          <p className="home-data-status">{status}</p>
+        </div>
+        <a href="/downloads/encuentro-de-talentos.apk" download>
+          Descargar APK
+        </a>
+      </section>
     </main>
+  );
+}
+
+function EmptyState({
+  actionHref,
+  actionLabel,
+  text,
+  title,
+}: {
+  actionHref: string;
+  actionLabel: string;
+  text: string;
+  title: string;
+}) {
+  return (
+    <div className="empty-state-card">
+      <span>ET</span>
+      <h3>{title}</h3>
+      <p>{text}</p>
+      <Link href={actionHref}>{actionLabel}</Link>
+    </div>
   );
 }

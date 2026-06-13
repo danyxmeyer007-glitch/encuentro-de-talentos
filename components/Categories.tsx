@@ -83,7 +83,7 @@ const categories = [
 
 export default function Categories() {
   return (
-    <section id="categorias" className="relative px-4 py-16 text-white md:py-24">
+    <section id="categorias" className="et-showcase-section relative px-4 py-16 text-white md:py-24">
       <div className="pointer-events-none absolute inset-x-8 top-10 h-56 rounded-full bg-[radial-gradient(circle_at_28%_45%,rgba(34,211,238,0.1),transparent_48%),radial-gradient(circle_at_70%_45%,rgba(236,72,153,0.08),transparent_52%),radial-gradient(circle_at_50%_70%,rgba(250,204,21,0.1),transparent_62%)] blur-[22px]" />
 
       <div className="relative mx-auto max-w-7xl">

@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(2, 6, 23));
+        root.setBackgroundColor(Color.rgb(17, 17, 17));
 
         FrameLayout webShell = new FrameLayout(this);
         webView = new WebView(this);
@@ -52,7 +52,7 @@ public class MainActivity extends Activity {
                 getPackageName()
         ));
         splashImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        splashImage.setBackgroundColor(Color.rgb(2, 6, 23));
+        splashImage.setBackgroundColor(Color.rgb(17, 17, 17));
 
         webShell.addView(webView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -73,18 +73,17 @@ public class MainActivity extends Activity {
         nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setGravity(Gravity.CENTER);
         nav.setPadding(6, 6, 6, 6);
-        nav.setBackgroundColor(Color.rgb(3, 7, 28));
+        nav.setBackgroundColor(Color.rgb(17, 17, 17));
         root.addView(nav, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
 
         addNavButton(nav, "Salón", "/salon-de-la-fama");
+        addNavButton(nav, "Profile", "/camerino");
         addNavButton(nav, "Concursos", "/concursos");
-        addNavButton(nav, "Explorar", "/categorias");
         addNavButton(nav, "Escenario", "/escenario");
-        addNavButton(nav, "Mentorías", "/mentores");
-        addNavButton(nav, "Camerino", "/camerino");
+        addNavButton(nav, "Rankings", "/salon-de-la-fama#rankings");
 
         setContentView(root);
         configureWebView();
@@ -187,7 +186,7 @@ public class MainActivity extends Activity {
         }
 
         if (isInitialLoad) {
-            webView.loadUrl(BASE_URL + "/registro?app=1");
+            webView.loadUrl(BASE_URL + "/?app=1");
         }
     }
 
@@ -196,7 +195,7 @@ public class MainActivity extends Activity {
         button.setText(label);
         button.setAllCaps(false);
         button.setTextSize(11);
-        button.setTextColor(Color.WHITE);
+        button.setTextColor("Concursos".equals(label) ? Color.rgb(255, 215, 0) : Color.WHITE);
         button.setBackgroundColor(Color.TRANSPARENT);
         button.setMinHeight(64);
         button.setPadding(2, 2, 2, 2);

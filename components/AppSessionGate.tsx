@@ -9,12 +9,21 @@ import {
 
 const publicAppPaths = new Set(["/", "/registro", "/legal"]);
 
-function isAndroidApp() {
-  if (typeof navigator === "undefined") {
+type StandaloneNavigator = Navigator & {
+  standalone?: boolean;
+};
+
+function isInstalledApp() {
+  if (typeof window === "undefined") {
     return false;
   }
 
-  return navigator.userAgent.includes("EncuentroTalentosAndroid");
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    window.navigator.userAgent.includes("EncuentroTalentosAndroid") ||
+    (window.navigator as StandaloneNavigator).standalone === true
+  );
 }
 
 function isPublicAppPath(pathname: string) {
@@ -40,10 +49,10 @@ export default function AppSessionGate() {
     () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
     [],
   );
-  const [isReady, setIsReady] = useState(() => !isAndroidApp());
+  const [isReady, setIsReady] = useState(() => !isInstalledApp());
 
   useEffect(() => {
-    if (!isAndroidApp() || !supabase) {
+    if (!isInstalledApp() || !supabase) {
       return;
     }
 
@@ -87,11 +96,20 @@ export default function AppSessionGate() {
     };
   }, [pathname, router, supabase]);
 
-  if (!isReady && isAndroidApp()) {
+  if (!isReady && isInstalledApp()) {
     return (
-      <div className="fixed inset-0 z-[80] grid place-items-center bg-[#020617] px-6 text-center text-white">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-cyan-300">
+      <div className="fixed inset-0 z-[80] grid place-items-center overflow-hidden bg-[#111111] px-6 text-center text-white">
+        <video
+          src="/videos/ETportada.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover opacity-45"
+        />
+        <div className="absolute inset-0 bg-black/60" />
+        <div className="relative">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-[#FFD700]">
             Encuentro de Talentos
           </p>
           <p className="mt-3 text-lg font-black uppercase text-yellow-200">

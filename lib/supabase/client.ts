@@ -1,4 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+let browserClient: SupabaseClient | null = null;
 
 function isValidSupabaseUrl(value: string | undefined) {
   if (!value) {
@@ -32,5 +34,9 @@ export function createSupabaseBrowserClient() {
     throw new Error("Missing Supabase browser configuration");
   }
 
-  return createClient(supabaseUrl!, supabasePublishableKey);
+  if (!browserClient) {
+    browserClient = createClient(supabaseUrl!, supabasePublishableKey);
+  }
+
+  return browserClient;
 }

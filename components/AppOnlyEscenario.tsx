@@ -79,55 +79,56 @@ export default function AppOnlyEscenario() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-28 text-white">
+    <main className="et-showcase-section min-h-screen px-4 py-28 text-white">
       <section className="mx-auto grid min-h-[calc(100vh-9rem)] max-w-6xl items-center gap-8 md:grid-cols-[0.95fr_1.05fr]">
         <div className="order-2 md:order-1">
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">
-            Escenario live ET
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
+            Escenario exclusivo de la app
           </p>
           <h1 className="mt-4 text-5xl font-black uppercase leading-[0.9] text-white sm:text-7xl">
-            Download app
+            Instala para abrir el escenario en vivo
           </h1>
-          <p className="mt-5 max-w-xl text-lg font-bold leading-8 text-cyan-100">
-            Para entrar al escenario live, instala Encuentro de Talentos en tu
-            pantalla de inicio y abre esta seccion desde la app.
+          <p className="mt-5 max-w-xl text-lg font-bold leading-8 text-white/75">
+            El sitio público mantiene disponibles descubrimiento, registro, legal,
+            mentores y rankings. El escenario en vivo aparece dentro de la app
+            instalada, donde se piden cámara y micrófono cuando corresponde.
           </p>
 
           <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-2">
             {installPrompt ? (
               <button
-                className="rounded-full border border-white/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.32),transparent_46%),linear-gradient(90deg,#22d3ee,#ec4899,#facc15)] px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-white shadow-[0_0_34px_rgba(34,211,238,0.3),0_0_42px_rgba(250,204,21,0.22),inset_0_1px_0_rgba(255,255,255,0.45)] transition hover:scale-105"
+                className="rounded-full border border-[#FFECA0]/60 bg-[#FFD700] px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-[#111111] shadow-[0_0_34px_rgba(255,215,0,0.24),inset_0_1px_0_rgba(255,255,255,0.45)] transition hover:scale-105"
                 type="button"
                 onClick={installApp}
               >
-                Download Android
+                Descargar APK
               </button>
             ) : (
               <a
-                className="rounded-full border border-white/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.32),transparent_46%),linear-gradient(90deg,#22d3ee,#ec4899,#facc15)] px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-white no-underline shadow-[0_0_34px_rgba(34,211,238,0.3),0_0_42px_rgba(250,204,21,0.22),inset_0_1px_0_rgba(255,255,255,0.45)] transition hover:scale-105"
+                className="rounded-full border border-[#FFECA0]/60 bg-[#FFD700] px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-[#111111] no-underline shadow-[0_0_34px_rgba(255,215,0,0.24),inset_0_1px_0_rgba(255,255,255,0.45)] transition hover:scale-105"
                 href={androidPackageUrl}
                 download={androidPackageUrl.startsWith("/") ? true : undefined}
               >
-                Download Android
+                Descargar APK
               </a>
             )}
             <a
-              className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-cyan-100 no-underline transition hover:border-cyan-200/60 hover:bg-cyan-300/15"
+              className="rounded-full border border-white/15 bg-white/[0.06] px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-white no-underline transition hover:border-[#FFD700]/55"
               href={iosPackageUrl}
             >
-              Download iOS
+              Agregar a iOS
             </a>
           </div>
 
           <div
             id="ios-install"
-            className="mt-5 max-w-xl rounded-[20px] border border-white/15 bg-white/[0.045] p-4 text-sm font-bold leading-7 text-cyan-100"
+            className="mt-5 max-w-xl rounded-[20px] border border-white/15 bg-white/[0.045] p-4 text-sm font-bold leading-7 text-white/70"
           >
             <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-200">
               iPhone / iPad
             </p>
             <p className="mt-2">
-              Abre esta pagina en Safari, toca Compartir y elige Agregar a pantalla
+              Abre esta página en Safari, toca Compartir y elige Agregar a pantalla
               de inicio.
             </p>
           </div>

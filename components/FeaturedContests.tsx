@@ -156,7 +156,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
     const currentUserId = session?.user.id;
 
     if (!currentUserId) {
-      setStatus("Inicia sesion y crea tu perfil para participar en canto.");
+      setStatus("Inicia sesión y crea tu perfil para participar en canto.");
       return;
     }
 
@@ -190,7 +190,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
     setUserId(currentUserId);
     setParticipantIds(result.participantIds ?? participantIds);
     setParticipantsRefreshKey((current) => current + 1);
-    setStatus("Tu perfil artistico fue agregado a participantes de canto.");
+    setStatus("Tu perfil artístico fue agregado a participantes de canto.");
   }
 
   const performerByUser = new Map(
@@ -198,7 +198,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
   );
 
   return (
-    <section id="concursos" className="relative px-4 py-16 text-white md:py-24">
+    <section id="concursos" className="et-showcase-section relative px-4 py-16 text-white md:py-24">
       <div className="pointer-events-none absolute inset-x-8 top-10 h-56 rounded-full bg-[radial-gradient(circle_at_28%_45%,rgba(34,211,238,0.1),transparent_48%),radial-gradient(circle_at_70%_45%,rgba(236,72,153,0.08),transparent_52%),radial-gradient(circle_at_50%_70%,rgba(250,204,21,0.1),transparent_62%)] blur-[22px]" />
 
       <div className="relative mx-auto max-w-7xl">
@@ -306,11 +306,14 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
                       <div className="flex items-center gap-3">
                         <div className="grid h-12 w-12 overflow-hidden rounded-2xl border border-cyan-300/25 bg-cyan-300/10 place-items-center font-black text-cyan-100">
                           {profile.photo_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              alt=""
+                            <span
+                              aria-hidden="true"
                               className="h-full w-full object-cover"
-                              src={profile.photo_url}
+                              style={{
+                                backgroundImage: `url(${profile.photo_url})`,
+                                backgroundPosition: "center",
+                                backgroundSize: "cover",
+                              }}
                             />
                           ) : (
                             displayName.slice(0, 1)

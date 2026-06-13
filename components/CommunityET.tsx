@@ -203,7 +203,7 @@ export default function CommunityET() {
   }
 
   return (
-    <section className="relative px-4 py-12 text-white md:py-16">
+    <section className="et-showcase-section relative px-4 py-12 text-white md:py-16">
       <div className="relative mx-auto max-w-7xl">
         <div className="mb-8 max-w-3xl">
           <p className="mb-4 text-sm font-black uppercase tracking-[0.35em] text-cyan-300">
@@ -296,11 +296,14 @@ function ProfileGrid({
             <div className="flex gap-3">
               <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-cyan-300/25 bg-cyan-300/10 text-lg font-black text-cyan-100">
                 {profile.photo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    alt=""
+                  <span
+                    aria-hidden="true"
                     className="h-full w-full object-cover"
-                    src={profile.photo_url}
+                    style={{
+                      backgroundImage: `url(${profile.photo_url})`,
+                      backgroundPosition: "center",
+                      backgroundSize: "cover",
+                    }}
                   />
                 ) : (
                   getDisplayName(profile).slice(0, 1)
