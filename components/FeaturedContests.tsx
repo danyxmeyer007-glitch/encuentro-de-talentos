@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   createSupabaseBrowserClient,
   hasSupabaseBrowserConfig,
@@ -13,14 +14,16 @@ const maxVoiceParticipants = 10;
 
 const contests = [
   {
+    slug: singingContestSlug,
     title: "Temporada Piloto: Voz",
     status: "Inicia el 15 de julio",
     icon: "🎤",
     participants: "Próximamente",
     category: "Canto",
-    description: "Para voces solistas, dúos e intérpretes listos para debutar frente a la comunidad. El concurso empieza el 15 de julio.",
+    description: "Para voces solistas, dúos e intérpretes listos para debutar frente a la comunidad.",
   },
   {
+    slug: "beats-piloto-2026",
     title: "Batalla de Beats",
     status: "Próximamente",
     icon: "🎧",
@@ -29,6 +32,7 @@ const contests = [
     description: "Productores, beatmakers y creadores de instrumentales originales.",
   },
   {
+    slug: "instrumentistas-piloto-2026",
     title: "Instrumentistas ET",
     status: "Próximamente",
     icon: "🎸",
@@ -76,12 +80,14 @@ type FeaturedContestsProps = {
 };
 
 export default function FeaturedContests({ fullPage = false }: FeaturedContestsProps) {
+  const router = useRouter();
   const supabase = useMemo(
     () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
     [],
   );
   const [userId, setUserId] = useState("");
   const [participantIds, setParticipantIds] = useState<string[]>([]);
+  const [registeredSlugs, setRegisteredSlugs] = useState<string[]>([]);
   const [participantProfiles, setParticipantProfiles] = useState<
     Array<{
       user_id: string;
@@ -106,20 +112,28 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
 
       const registrations = await client
         .from("contest_registrations")
-        .select("user_id")
-        .eq("contest_slug", singingContestSlug)
+        .select("user_id, contest_slug")
+        .in("contest_slug", contests.map((contest) => contest.slug))
         .order("created_at", { ascending: true })
-        .limit(maxVoiceParticipants);
+        .limit(200);
 
       if (registrations.error) {
         setStatus(registrations.error.message);
         return;
       }
 
-      const ids = (registrations.data ?? [])
+      const allRegistrations = registrations.data ?? [];
+      const currentUserId = sessionData.session?.user.id ?? "";
+      const ids = allRegistrations
+        .filter((item) => item.contest_slug === singingContestSlug)
         .map((item) => item.user_id)
         .slice(0, maxVoiceParticipants);
       setParticipantIds(ids);
+      setRegisteredSlugs(
+        allRegistrations
+          .filter((item) => item.user_id === currentUserId)
+          .map((item) => item.contest_slug),
+      );
 
       if (!ids.length) {
         setParticipantProfiles([]);
@@ -145,7 +159,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
     void loadParticipants();
   }, [participantsRefreshKey, supabase]);
 
-  async function registerForSinging() {
+  async function updateContestRegistration(contestSlug: string, isRegistered: boolean) {
     if (!supabase) {
       setStatus("Configura Supabase para registrar participantes.");
       return;
@@ -156,11 +170,13 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
     const currentUserId = session?.user.id;
 
     if (!currentUserId) {
-      setStatus("Inicia sesión y crea tu perfil para participar en canto.");
+      router.push(`/registro?next=concursos&concurso=${encodeURIComponent(contestSlug)}`);
       return;
     }
 
     if (
+      contestSlug === singingContestSlug &&
+      !isRegistered &&
       participantIds.length >= maxVoiceParticipants &&
       !participantIds.includes(currentUserId)
     ) {
@@ -169,12 +185,12 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
     }
 
     const response = await fetch("/api/contest-registrations", {
-      method: "POST",
+      method: isRegistered ? "DELETE" : "POST",
       headers: {
         Authorization: `Bearer ${session.access_token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ contestSlug: singingContestSlug }),
+      body: JSON.stringify({ contestSlug }),
     });
 
     const result = (await response.json()) as {
@@ -183,14 +199,23 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
     };
 
     if (!response.ok) {
-      setStatus(result.error ?? "No se pudo registrar tu perfil en canto.");
+      setStatus(result.error ?? "No se pudo actualizar tu inscripción.");
       return;
     }
 
     setUserId(currentUserId);
     setParticipantIds(result.participantIds ?? participantIds);
+    setRegisteredSlugs((current) =>
+      isRegistered
+        ? current.filter((slug) => slug !== contestSlug)
+        : Array.from(new Set([...current, contestSlug])),
+    );
     setParticipantsRefreshKey((current) => current + 1);
-    setStatus("Tu perfil artístico fue agregado a participantes de canto.");
+    setStatus(
+      isRegistered
+        ? "Cancelaste tu inscripción a este concurso."
+        : "Tu perfil artístico fue agregado al concurso.",
+    );
   }
 
   const performerByUser = new Map(
@@ -217,7 +242,7 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
 
         <div className="mb-8 rounded-[32px] border border-white/[0.16] bg-white/[0.035] p-5 shadow-[0_0_18px_rgba(250,204,21,0.11),inset_0_1px_0_rgba(255,255,255,0.18)] md:p-6">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.22)]">
-            Objetivo oficial: descubrir y promover nuevos talentos.
+            Objetivo oficial: descubrir nuevos talentos. Primer lugar: $100 USD.
           </p>
         </div>
 
@@ -254,26 +279,42 @@ export default function FeaturedContests({ fullPage = false }: FeaturedContestsP
                   </span>
                 ) : null}
               </div>
-              {index === 0 ? (
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <button
-                    className="gold-button-small"
-                    type="button"
-                    disabled={
-                      participantIds.length >= maxVoiceParticipants &&
-                      !participantIds.includes(userId)
-                    }
-                    onClick={registerForSinging}
-                  >
-                    {userId && participantIds.includes(userId)
-                      ? "Ya participas"
-                      : participantIds.length >= maxVoiceParticipants
-                        ? "Lista llena"
-                        : "Registrar en canto"}
-                  </button>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  className="gold-button-small"
+                  type="button"
+                  disabled={
+                    contest.slug === singingContestSlug &&
+                    participantIds.length >= maxVoiceParticipants &&
+                    !participantIds.includes(userId)
+                  }
+                  onClick={() =>
+                    updateContestRegistration(
+                      contest.slug,
+                      registeredSlugs.includes(contest.slug),
+                    )
+                  }
+                >
+                  {registeredSlugs.includes(contest.slug)
+                    ? "Salir del concurso"
+                    : contest.slug === singingContestSlug &&
+                        participantIds.length >= maxVoiceParticipants
+                      ? "Lista llena"
+                      : "Inscribirme"}
+                </button>
+                {index === 0 ? (
                   <Link className="secondary-button px-4 py-2 text-sm" href="/camerino">
                     Ver camerino
                   </Link>
+                ) : null}
+              </div>
+              {index === 0 ? (
+                <div className="mt-5 flex flex-wrap gap-3">
+                  {registeredSlugs.includes(contest.slug) ? (
+                    <span className="rounded-full border border-white/20 bg-white/[0.035] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-cyan-300">
+                      Inscripción activa
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
             </article>

@@ -16,8 +16,6 @@ type StandaloneNavigator = Navigator & {
 const androidPackageUrl =
   process.env.NEXT_PUBLIC_ANDROID_PACKAGE_URL ||
   "/downloads/encuentro-de-talentos.apk";
-const iosPackageUrl = process.env.NEXT_PUBLIC_IOS_PACKAGE_URL || "#ios-install";
-
 function isStandaloneApp() {
   if (typeof window === "undefined") {
     return false;
@@ -83,54 +81,36 @@ export default function AppOnlyEscenario() {
       <section className="mx-auto grid min-h-[calc(100vh-9rem)] max-w-6xl items-center gap-8 md:grid-cols-[0.95fr_1.05fr]">
         <div className="order-2 md:order-1">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-yellow-300">
-            Escenario exclusivo de la app
+            Experiencia live
           </p>
           <h1 className="mt-4 text-5xl font-black uppercase leading-[0.9] text-white sm:text-7xl">
-            Instala para abrir el escenario en vivo
+            Download para entrar live
           </h1>
-          <p className="mt-5 max-w-xl text-lg font-bold leading-8 text-white/75">
-            El sitio público mantiene disponibles descubrimiento, registro, legal,
-            mentores y rankings. El escenario en vivo aparece dentro de la app
-            instalada, donde se piden cámara y micrófono cuando corresponde.
-          </p>
 
-          <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-2">
+          <div className="mt-8 grid max-w-xl gap-3">
             {installPrompt ? (
               <button
-                className="rounded-full border border-[#FFECA0]/60 bg-[#FFD700] px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-[#111111] shadow-[0_0_34px_rgba(255,215,0,0.24),inset_0_1px_0_rgba(255,255,255,0.45)] transition hover:scale-105"
+                className="gold-button px-6 py-3 text-center text-sm"
                 type="button"
                 onClick={installApp}
               >
-                Descargar APK
+                Bajar APK Android
               </button>
             ) : (
               <a
-                className="rounded-full border border-[#FFECA0]/60 bg-[#FFD700] px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-[#111111] no-underline shadow-[0_0_34px_rgba(255,215,0,0.24),inset_0_1px_0_rgba(255,255,255,0.45)] transition hover:scale-105"
+                className="gold-button px-6 py-3 text-center text-sm no-underline"
                 href={androidPackageUrl}
                 download={androidPackageUrl.startsWith("/") ? true : undefined}
               >
-                Descargar APK
+                Bajar APK Android
               </a>
             )}
-            <a
-              className="rounded-full border border-white/15 bg-white/[0.06] px-6 py-3 text-center text-sm font-black uppercase tracking-widest text-white no-underline transition hover:border-[#FFD700]/55"
-              href={iosPackageUrl}
+            <span
+              className="secondary-button cursor-not-allowed px-6 py-3 text-center text-sm opacity-70"
+              aria-disabled="true"
             >
-              Agregar a iOS
-            </a>
-          </div>
-
-          <div
-            id="ios-install"
-            className="mt-5 max-w-xl rounded-[20px] border border-white/15 bg-white/[0.045] p-4 text-sm font-bold leading-7 text-white/70"
-          >
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-yellow-200">
-              iPhone / iPad
-            </p>
-            <p className="mt-2">
-              Abre esta página en Safari, toca Compartir y elige Agregar a pantalla
-              de inicio.
-            </p>
+              Apple próximamente
+            </span>
           </div>
         </div>
 

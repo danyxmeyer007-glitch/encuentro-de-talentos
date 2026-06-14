@@ -7,6 +7,8 @@
   --et-gold-deep: #b87900;
   --et-ink: #050505;
   --et-space: #111111;
+  --et-display-font: "Avenir Next Condensed", "Arial Black", Impact, Haettenschweiler, sans-serif;
+  --et-body-font: "Avenir Next", "Montserrat", "Segoe UI", Arial, Helvetica, sans-serif;
 
   --background: #111111;
   --foreground: #ffffff;
@@ -28,7 +30,7 @@ body {
   overflow-x: hidden;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--et-body-font);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   padding-bottom: env(safe-area-inset-bottom);
@@ -44,6 +46,18 @@ canvas {
 
 a {
   color: inherit;
+}
+
+h1,
+h2,
+h3,
+.gold-button,
+.gold-button-small,
+.et-primary-button,
+.primary-action,
+.center-submit,
+button {
+  font-family: var(--et-display-font);
 }
 
 :focus-visible {
@@ -306,7 +320,9 @@ a {
   min-height: 100vh;
   padding: 6.5rem max(1rem, env(safe-area-inset-left)) 7.5rem;
   background:
-    linear-gradient(180deg, rgba(17, 17, 17, 0.72), #111111 38%),
+    linear-gradient(180deg, rgba(17, 17, 17, 0.32), #111111 50%),
+    radial-gradient(circle at 60% 8%, rgba(236, 72, 153, 0.18), transparent 26%),
+    radial-gradient(circle at 30% 12%, rgba(34, 211, 238, 0.22), transparent 30%),
     linear-gradient(135deg, rgba(255, 215, 0, 0.12), transparent 42%),
     #111111;
   color: #ffffff;
@@ -321,6 +337,8 @@ a {
 }
 
 .featured-banner {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(300px, 0.85fr);
   align-items: center;
@@ -329,10 +347,41 @@ a {
   padding-bottom: 2rem;
 }
 
+.featured-banner::before {
+  content: "";
+  position: absolute;
+  inset: -6rem -8vw -3rem;
+  z-index: -2;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.28) 52%, rgba(0, 0, 0, 0.72)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1), #111111 92%),
+    url("/et-portada.png");
+  background-position: center top;
+  background-size: cover;
+  opacity: 0.74;
+}
+
+.featured-banner::after {
+  content: "";
+  position: absolute;
+  inset: 4rem 10% auto;
+  z-index: -1;
+  height: 42%;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 999px;
+  box-shadow:
+    0 0 64px rgba(34, 211, 238, 0.28),
+    0 0 100px rgba(236, 72, 153, 0.18),
+    inset 0 0 80px rgba(255, 215, 0, 0.08);
+  opacity: 0.86;
+}
+
 .banner-copy {
   position: relative;
   z-index: 2;
   max-width: 670px;
+  border-left: 2px solid rgba(255, 215, 0, 0.62);
+  padding-left: clamp(1rem, 2.2vw, 1.8rem);
 }
 
 .eyebrow,
@@ -348,22 +397,26 @@ a {
 .banner-copy h1 {
   margin: 1rem 0 0;
   max-width: 12ch;
-  color: #ffffff;
+  background: linear-gradient(90deg, #ffffff 8%, #22d3ee 28%, #ec4899 62%, #facc15 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   font-size: clamp(3.6rem, 7.2vw, 7.7rem);
   font-weight: 1000;
   letter-spacing: 0;
   line-height: 0.82;
   text-transform: uppercase;
-  text-shadow: 0 0 26px rgba(255, 215, 0, 0.22);
+  filter: drop-shadow(0 0 22px rgba(255, 215, 0, 0.2));
 }
 
 .banner-text {
   max-width: 38rem;
   margin: 1.4rem 0 0;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 1.1rem;
+  color: rgba(255, 247, 224, 0.86);
+  font-size: clamp(1.08rem, 2vw, 1.32rem);
   font-weight: 650;
   line-height: 1.75;
+  text-shadow: 0 0 18px rgba(0, 0, 0, 0.62);
 }
 
 .banner-actions {
@@ -409,6 +462,13 @@ a {
   color: #ffffff;
 }
 
+.nav-auth-link {
+  min-height: auto;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: rgba(255, 255, 255, 0.84) !important;
+}
+
 .phone-stage {
   position: relative;
   z-index: 1;
@@ -429,27 +489,29 @@ a {
   background: #000000;
   box-shadow:
     0 28px 70px rgba(0, 0, 0, 0.58),
-    0 0 52px rgba(255, 215, 0, 0.24);
+    0 0 52px rgba(34, 211, 238, 0.22),
+    0 0 78px rgba(236, 72, 153, 0.2),
+    0 0 86px rgba(255, 215, 0, 0.16);
+}
+
+.phone-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 22%, rgba(0, 0, 0, 0.18)),
+    radial-gradient(circle at 52% 48%, transparent 0 32%, rgba(0, 0, 0, 0.18) 68%);
+  pointer-events: none;
 }
 
 .phone-video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.phone-overlay {
-  position: absolute;
-  inset-inline: 1rem;
-  bottom: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 22px;
-  background: rgba(0, 0, 0, 0.62);
-  padding: 1rem;
-  backdrop-filter: blur(14px);
-}
-
-.phone-overlay span,
 .prize-card span {
   display: block;
   color: #ffd700;
@@ -457,14 +519,6 @@ a {
   font-weight: 950;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-}
-
-.phone-overlay strong {
-  display: block;
-  margin-top: 0.3rem;
-  font-size: 1.4rem;
-  font-weight: 950;
-  line-height: 1;
 }
 
 .prize-card {
@@ -478,16 +532,22 @@ a {
 }
 
 .prize-card {
-  left: 0;
-  bottom: 5rem;
-  width: min(42vw, 220px);
+  left: -1rem;
+  bottom: 3.5rem;
+  width: min(42vw, 230px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+    rgba(17, 17, 17, 0.9);
 }
 
 .prize-card strong {
   display: block;
   margin-top: 0.25rem;
-  color: #ffffff;
-  font-size: 2rem;
+  background: linear-gradient(90deg, #22d3ee, #ec4899, #facc15);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 2.4rem;
   font-weight: 1000;
 }
 
@@ -537,6 +597,30 @@ a {
   background: rgba(255, 255, 255, 0.055);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(18px);
+}
+
+.apk-band {
+  position: relative;
+  overflow: hidden;
+  align-items: center;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.38)),
+    radial-gradient(circle at 20% 50%, rgba(34, 211, 238, 0.2), transparent 30%),
+    radial-gradient(circle at 80% 50%, rgba(250, 204, 21, 0.22), transparent 32%),
+    rgba(255, 255, 255, 0.055);
+}
+
+.apk-band::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("/et-portada.png") center / cover;
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.apk-band > * {
+  position: relative;
 }
 
 .panel,
@@ -929,11 +1013,11 @@ a {
   }
 
   .phone-stage {
-    min-height: 500px;
+    min-height: 520px;
   }
 
   .phone-frame {
-    width: min(78vw, 300px);
+    width: min(76vw, 300px);
   }
 
   .prize-card {
@@ -2203,12 +2287,13 @@ a {
   border-color: rgba(255, 236, 153, 0.62) !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 46%),
-    linear-gradient(90deg, #fff7ad, #ffd700 48%, #b87900) !important;
-  color: #111111 !important;
-  text-shadow: none !important;
+    linear-gradient(90deg, #22d3ee, #ec4899, #facc15) !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32) !important;
   box-shadow:
     0 18px 46px rgba(0, 0, 0, 0.34),
-    0 0 32px rgba(255, 215, 0, 0.26),
+    0 0 26px rgba(34, 211, 238, 0.26),
+    0 0 32px rgba(250, 204, 21, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
 }
 
@@ -2221,7 +2306,8 @@ a {
   transform: translateY(-2px);
   box-shadow:
     0 22px 54px rgba(0, 0, 0, 0.42),
-    0 0 42px rgba(255, 215, 0, 0.42) !important;
+    0 0 42px rgba(34, 211, 238, 0.34),
+    0 0 52px rgba(236, 72, 153, 0.22) !important;
 }
 
 .secondary-button,
@@ -2325,7 +2411,7 @@ a {
 .et-showcase-section .text-cyan-300,
 .et-showcase-section .text-cyan-200,
 .et-showcase-section .text-cyan-100 {
-  color: rgba(255, 255, 255, 0.72) !important;
+  color: rgba(255, 241, 218, 0.78) !important;
 }
 
 .et-showcase-section .text-yellow-300,
@@ -2334,7 +2420,14 @@ a {
 }
 
 .et-showcase-section .bg-gradient-to-r {
-  background-image: linear-gradient(90deg, #ffffff, #ffd700, #ffffff) !important;
+  background-image: linear-gradient(90deg, #22d3ee, #ec4899, #facc15) !important;
+}
+
+.et-showcase-section p,
+.et-showcase-section li,
+.et-showcase-section label,
+.et-showcase-section span {
+  text-shadow: 0 0 14px rgba(236, 72, 153, 0.08);
 }
 
 .et-showcase-section .rounded-\[32px\],

@@ -7,7 +7,7 @@ import {
   hasSupabaseBrowserConfig,
 } from "@/lib/supabase/client";
 
-const publicAppPaths = new Set(["/", "/registro", "/legal"]);
+const publicAppPaths = new Set(["/registro"]);
 
 type StandaloneNavigator = Navigator & {
   standalone?: boolean;

@@ -1,4 +1,12 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import AiMentor from "@/components/AiMentor";
+import {
+  createSupabaseBrowserClient,
+  hasSupabaseBrowserConfig,
+} from "@/lib/supabase/client";
 
 const mentorNeeds = [
   {
@@ -44,6 +52,78 @@ const mentorNeeds = [
 ];
 
 export default function MentoresPage() {
+  const supabase = useMemo(
+    () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
+    [],
+  );
+  const [hasSession, setHasSession] = useState(false);
+  const [isReady, setIsReady] = useState(() => !hasSupabaseBrowserConfig());
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    let isActive = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (isActive) {
+        setHasSession(Boolean(data.session));
+        setIsReady(true);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setHasSession(Boolean(session));
+      setIsReady(true);
+    });
+
+    return () => {
+      isActive = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  if (!isReady) {
+    return (
+      <main className="page-shell">
+        <section className="et-showcase-section px-4 py-16 text-white">
+          <div className="mx-auto max-w-3xl rounded-[24px] border border-white/[0.16] bg-white/[0.035] p-6 text-center">
+            <p className="text-sm font-black uppercase tracking-[0.25em] text-cyan-300">
+              Cargando mentoría ET
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!hasSession) {
+    return (
+      <main className="page-shell">
+        <section className="et-showcase-section px-4 py-16 text-white md:py-24">
+          <div className="mx-auto max-w-3xl rounded-[24px] border border-white/[0.16] bg-white/[0.035] p-6 text-center shadow-[0_0_18px_rgba(250,204,21,0.11),inset_0_1px_0_rgba(255,255,255,0.18)] md:p-8">
+            <p className="text-sm font-black uppercase tracking-[0.35em] text-cyan-300">
+              Mentores ET
+            </p>
+            <h1 className="mt-4 bg-gradient-to-r from-cyan-300 via-pink-400 to-yellow-300 bg-clip-text text-4xl font-black uppercase leading-none text-transparent md:text-6xl">
+              Área para miembros
+            </h1>
+            <p className="mt-5 text-lg font-bold leading-8 text-cyan-300">
+              Entra o crea tu cuenta para ver mentoría IA, calificaciones y
+              beneficios para suscriptores.
+            </p>
+            <Link className="gold-button mt-7 w-full md:w-auto" href="/registro?next=mentores">
+              Entrar o registrarme
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="page-shell">
       <AiMentor />
@@ -65,9 +145,38 @@ export default function MentoresPage() {
 
           <div className="mb-8 rounded-[32px] border border-white/[0.16] bg-white/[0.035] p-5 shadow-[0_0_18px_rgba(250,204,21,0.11),inset_0_1px_0_rgba(255,255,255,0.18)] md:p-6">
             <p className="text-sm font-black uppercase tracking-[0.18em] text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.22)]">
-              Leyenda: mentores humanos próximamente • aplicaciones abiertas para formar el equipo ET
+              Codex IA será mentor de voz, evaluación y calificaciones para suscriptores ET.
             </p>
           </div>
+
+          <section className="mb-8 rounded-[32px] border border-white/[0.16] bg-white/[0.035] p-6 shadow-[0_0_18px_rgba(250,204,21,0.11),inset_0_1px_0_rgba(255,255,255,0.18)] md:p-8">
+            <div className="grid gap-5 lg:grid-cols-[1fr_0.7fr]">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.25em] text-yellow-300">
+                  Mentor IA Premium
+                </p>
+                <h2 className="mt-3 bg-gradient-to-r from-cyan-300 via-pink-400 to-yellow-300 bg-clip-text text-3xl font-black uppercase leading-none text-transparent md:text-5xl">
+                  Codex IA para voz y calificaciones
+                </h2>
+                <p className="mt-4 text-sm font-bold leading-7 text-cyan-300">
+                  Análisis de voz, recomendaciones de práctica, preparación para
+                  concursos y retroalimentación de calificación. Disponible para
+                  suscriptores mediante compras dentro de la app.
+                </p>
+              </div>
+              <div className="rounded-[22px] border border-white/12 bg-black/26 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                  Estado
+                </p>
+                <p className="mt-2 text-2xl font-black uppercase text-white">
+                  Suscripción requerida
+                </p>
+                <button className="gold-button mt-5 w-full text-sm" disabled>
+                  In-app purchases próximamente
+                </button>
+              </div>
+            </div>
+          </section>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {mentorNeeds.map((mentor) => (

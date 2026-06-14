@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   createSupabaseBrowserClient,
   hasSupabaseBrowserConfig,
@@ -41,6 +42,8 @@ const contestProfileLimit = 10;
 const friendRequestLimit = 500;
 
 export default function CommunityET() {
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("buscar")?.trim() ?? "";
   const supabase = useMemo(
     () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
     [],
@@ -151,7 +154,33 @@ export default function CommunityET() {
     performers.map((performer) => [performer.user_id, performer]),
   );
   const contestUsers = new Set(registrations.map((item) => item.user_id));
-  const contestProfiles = profiles.filter((profile) =>
+  const filteredProfiles = searchQuery
+    ? profiles.filter((profile) => {
+        const performer = performerByUser.get(profile.user_id);
+        const searchableText = [
+          performer?.stage_name,
+          performer?.genre,
+          profile.name,
+          profile.username,
+          profile.city,
+          profile.country,
+          profile.bio,
+          profile.talent_type,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
+        const normalizedQuery = searchQuery
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
+
+        return searchableText.includes(normalizedQuery);
+      })
+    : profiles;
+  const contestProfiles = filteredProfiles.filter((profile) =>
     contestUsers.has(profile.user_id),
   );
 
@@ -213,8 +242,9 @@ export default function CommunityET() {
             Salón de la Fama
           </h1>
           <p className="mt-5 text-lg font-medium leading-8 text-cyan-300">
-            Perfiles registrados, artistas activos y participantes del Concurso 1:
-            Temporada Piloto Voz.
+            {searchQuery
+              ? `Resultados para "${searchQuery}" en talentos, perfiles y participantes.`
+              : "Perfiles registrados, artistas activos y participantes del Concurso 1: Temporada Piloto Voz."}
           </p>
         </div>
 
@@ -255,7 +285,7 @@ export default function CommunityET() {
               <h2 className="mt-1 text-2xl font-black">Comunidad registrada</h2>
             </div>
             <span className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white/55">
-              {profiles.length} perfiles
+              {filteredProfiles.length} perfiles
             </span>
           </div>
 
@@ -263,7 +293,7 @@ export default function CommunityET() {
             addFriend={addFriend}
             getDisplayName={getDisplayName}
             getSubline={getSubline}
-            profiles={profiles}
+            profiles={filteredProfiles}
             userId={userId}
           />
         </section>

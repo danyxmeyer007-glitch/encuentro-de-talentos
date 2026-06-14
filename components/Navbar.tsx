@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   createSupabaseBrowserClient,
   hasSupabaseBrowserConfig,
@@ -13,7 +13,12 @@ type StandaloneNavigator = Navigator & {
   standalone?: boolean;
 };
 
-const websiteTopLinks = [
+const publicWebsiteTopLinks = [
+  { href: "/concursos", label: "Concursos" },
+  { href: "/legal", label: "Legal" },
+];
+
+const joinedWebsiteTopLinks = [
   { href: "/camerino", label: "Camerino" },
   { href: "/concursos", label: "Concursos" },
   { href: "/mentores", label: "Mentores" },
@@ -29,7 +34,13 @@ const appTopLinks = [
   { href: "/salon-de-la-fama", label: "Salón" },
 ];
 
-const websiteBottomLinks = [
+const publicWebsiteBottomLinks = [
+  { href: "/registro", label: "Registro", icon: "ET" },
+  { href: "/concursos", label: "Concursos", icon: "+" },
+  { href: "/legal", label: "Legal", icon: "§" },
+];
+
+const joinedWebsiteBottomLinks = [
   { href: "/salon-de-la-fama", label: "Salón", icon: "★" },
   { href: "/camerino", label: "Perfil", icon: "◐" },
   { href: "/concursos", label: "Concursos", icon: "+" },
@@ -67,6 +78,7 @@ export default function Navbar() {
   );
   const [isJoined, setIsJoined] = useState(false);
   const [isApp, setIsApp] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     function syncDisplayMode() {
@@ -117,8 +129,62 @@ export default function Navbar() {
     router.refresh();
   }
 
-  const topLinks = isApp ? appTopLinks : websiteTopLinks;
-  const bottomLinks = isApp ? appBottomLinks : websiteBottomLinks;
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const query = searchTerm.trim();
+
+    if (!query) {
+      return;
+    }
+
+    const normalizedQuery = query
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    if (/(concurso|audicion|voz|canto|inscrib)/.test(normalizedQuery)) {
+      router.push(`/concursos?buscar=${encodeURIComponent(query)}`);
+      return;
+    }
+
+    if (/(camerino|perfil|foto|artista)/.test(normalizedQuery)) {
+      router.push(`/camerino?buscar=${encodeURIComponent(query)}`);
+      return;
+    }
+
+    if (/(mentor|clase|ia|ayuda)/.test(normalizedQuery)) {
+      router.push(`/mentores?buscar=${encodeURIComponent(query)}`);
+      return;
+    }
+
+    if (/(escenario|live|vivo|camara|microfono)/.test(normalizedQuery)) {
+      router.push(`/escenario?buscar=${encodeURIComponent(query)}`);
+      return;
+    }
+
+    if (/(legal|pdf|reglamento|terminos)/.test(normalizedQuery)) {
+      router.push(`/legal?buscar=${encodeURIComponent(query)}`);
+      return;
+    }
+
+    router.push(`/salon-de-la-fama?buscar=${encodeURIComponent(query)}`);
+  }
+
+  const topLinks = isApp
+    ? isJoined
+      ? appTopLinks
+      : []
+    : isJoined
+      ? joinedWebsiteTopLinks
+      : publicWebsiteTopLinks;
+  const bottomLinks = isApp
+    ? appBottomLinks
+    : isJoined
+      ? joinedWebsiteBottomLinks
+      : publicWebsiteBottomLinks;
+  const showSearch = !isApp || isJoined;
+  const showBottomNavigation = (!isApp || isJoined) && pathname !== "/escenario";
 
   return (
     <>
@@ -145,17 +211,25 @@ export default function Navbar() {
             </span>
           </Link>
 
-          <label className="relative min-w-0 flex-1">
-            <span className="sr-only">Buscar</span>
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#FFD700]">
-              ⌕
-            </span>
-            <input
-              className="h-11 w-full rounded-full border border-white/10 bg-white/[0.06] pl-9 pr-3 text-sm font-bold text-white outline-none transition placeholder:text-white/40 focus:border-[#FFD700]/60 focus:shadow-[0_0_20px_rgba(255,215,0,0.18)]"
-              placeholder="Buscar talentos, audiciones o mentores"
-              type="search"
-            />
-          </label>
+          {showSearch ? (
+            <form className="min-w-0 flex-1" onSubmit={handleSearch}>
+              <label className="relative block">
+                <span className="sr-only">Buscar</span>
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#FFD700]">
+                  ⌕
+                </span>
+                <input
+                  className="h-11 w-full rounded-full border border-white/10 bg-white/[0.06] pl-9 pr-3 text-sm font-bold text-white outline-none transition placeholder:text-white/40 focus:border-[#FFD700]/60 focus:shadow-[0_0_20px_rgba(255,215,0,0.18)]"
+                  placeholder="Buscar talentos, concursos o mentores"
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+              </label>
+            </form>
+          ) : (
+            <div className="min-w-0 flex-1" />
+          )}
 
           <div className="hidden items-center gap-1 lg:flex">
             {topLinks.map((link) => (
@@ -180,14 +254,14 @@ export default function Navbar() {
           ) : (
             <div className="hidden items-center gap-2 md:flex">
               <Link
-                className="et-primary-button inline-flex items-center justify-center px-4 py-2 text-xs no-underline"
-                href="/registro"
+                className="secondary-action nav-auth-link px-4 py-2 text-xs"
+                href="/registro?modo=entrar"
               >
                 Entrar
               </Link>
               <Link
                 className="et-primary-button inline-flex items-center justify-center px-4 py-2 text-xs no-underline"
-                href="/registro"
+                href="/registro?modo=registro"
               >
                 Registrarme
               </Link>
@@ -196,46 +270,52 @@ export default function Navbar() {
         </nav>
       </header>
 
-      <nav
-        aria-label="Bottom navigation"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#111111]/94 px-2 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_50px_rgba(0,0,0,0.42)] backdrop-blur-xl md:hidden"
-      >
-        <div className="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
-          {bottomLinks.map((link) => {
-            const hasHash = link.href.includes("#");
-            const active = !hasHash && pathname === link.href;
-            const isCenter = link.href === "/concursos";
+      {showBottomNavigation ? (
+        <nav
+          aria-label="Bottom navigation"
+          className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#111111]/94 px-2 pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_50px_rgba(0,0,0,0.42)] backdrop-blur-xl md:hidden"
+        >
+          <div
+            className={`mx-auto grid max-w-md items-end gap-1 ${
+              bottomLinks.length === 3 ? "grid-cols-3" : "grid-cols-5"
+            }`}
+          >
+            {bottomLinks.map((link) => {
+              const hasHash = link.href.includes("#");
+              const active = !hasHash && pathname === link.href;
+              const isCenter = link.href === "/concursos";
 
-            return (
-              <Link
-                aria-current={active ? "page" : undefined}
-                className={
-                  isCenter
-                    ? "grid -translate-y-4 place-items-center gap-1 text-center text-[0.62rem] font-black uppercase tracking-[0.05em] text-[#FFD700] no-underline"
-                    : "grid place-items-center gap-1 text-center text-[0.62rem] font-black uppercase tracking-[0.04em] text-white/66 no-underline"
-                }
-                href={link.href}
-                key={link.href}
-              >
-                <span
+              return (
+                <Link
+                  aria-current={active ? "page" : undefined}
                   className={
                     isCenter
-                      ? "grid h-14 w-14 place-items-center rounded-full border border-[#FFECA0]/70 bg-[#FFD700] text-3xl text-[#111111] shadow-[0_0_28px_rgba(255,215,0,0.42)]"
-                      : `grid h-8 w-8 place-items-center rounded-full border text-base ${
-                          active
-                            ? "border-[#FFD700]/60 bg-[#FFD700]/12 text-[#FFD700]"
-                            : "border-white/10 bg-white/[0.04] text-white/72"
-                        }`
+                      ? "grid -translate-y-4 place-items-center gap-1 text-center text-[0.62rem] font-black uppercase tracking-[0.05em] text-[#FFD700] no-underline"
+                      : "grid place-items-center gap-1 text-center text-[0.62rem] font-black uppercase tracking-[0.04em] text-white/66 no-underline"
                   }
+                  href={link.href}
+                  key={link.href}
                 >
-                  {link.icon}
-                </span>
-                <span>{link.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+                  <span
+                    className={
+                      isCenter
+                        ? "grid h-14 w-14 place-items-center rounded-full border border-[#FFECA0]/70 bg-[#FFD700] text-3xl text-[#111111] shadow-[0_0_28px_rgba(255,215,0,0.42)]"
+                        : `grid h-8 w-8 place-items-center rounded-full border text-base ${
+                            active
+                              ? "border-[#FFD700]/60 bg-[#FFD700]/12 text-[#FFD700]"
+                              : "border-white/10 bg-white/[0.04] text-white/72"
+                          }`
+                    }
+                  >
+                    {link.icon}
+                  </span>
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      ) : null}
     </>
   );
 }

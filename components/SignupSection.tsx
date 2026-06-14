@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import { Session } from "@supabase/supabase-js";
 import CamerinoProfile from "@/components/camerino/CamerinoProfile";
 import {
@@ -103,6 +104,24 @@ const emptyForm: ProfileForm = {
   demo_video_url: "",
   camerino_theme: "gold",
 };
+
+const camerinoPlans = [
+  {
+    title: "Camerino Free",
+    badge: "Bronce",
+    detail: "Perfil, foto, biografía y demos básicos.",
+  },
+  {
+    title: "Camerino Plateado",
+    badge: "Participantes",
+    detail: "Herramientas extra para talentos inscritos en concursos.",
+  },
+  {
+    title: "Camerino Oro",
+    badge: "Ganadores",
+    detail: "Distintivo premium para talentos ganadores.",
+  },
+];
 
 const talentOptions = [
   "Canto",
@@ -356,12 +375,16 @@ export default function SignupSection({
 }: {
   mode?: "registro" | "camerino";
 }) {
+  const searchParams = useSearchParams();
+  const requestedAuthMode = searchParams.get("modo");
   const supabase = useMemo(
     () => (hasSupabaseBrowserConfig() ? createSupabaseBrowserClient() : null),
     [],
   );
+  const initialAuthMode: AuthMode =
+    mode === "camerino" || requestedAuthMode === "entrar" ? "signin" : "signup";
   const [session, setSession] = useState<Session | null>(null);
-  const [authMode, setAuthMode] = useState<AuthMode>("signup");
+  const [authMode, setAuthMode] = useState<AuthMode>(initialAuthMode);
   const [role, setRole] = useState<Role>("audience");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -385,7 +408,18 @@ export default function SignupSection({
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isEditingCamerino, setIsEditingCamerino] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
   const isCamerinoPage = mode === "camerino";
+  const lockedAuthMode: AuthMode | null = isCamerinoPage
+    ? "signin"
+    : requestedAuthMode === "entrar"
+      ? "signin"
+      : requestedAuthMode === "registro"
+        ? "signup"
+        : null;
+  const selectedAuthMode = lockedAuthMode ?? authMode;
+  const showAuthModeChooser = !isCamerinoPage && !lockedAuthMode;
+
 
   const userId = session?.user.id ?? "";
   const missingSupabaseConfig = !supabase;
@@ -857,7 +891,7 @@ export default function SignupSection({
     setIsSaving(true);
 
     try {
-      const authModeForRequest = isCamerinoPage ? "signin" : authMode;
+      const authModeForRequest = selectedAuthMode;
 
       if (!supabase) {
         throw new Error("Falta configurar Supabase para registrar usuarios.");
@@ -1009,6 +1043,7 @@ export default function SignupSection({
     }
 
     setStatus("Te enviamos un enlace para cambiar tu contraseña.");
+    setIsRecoveringPassword(false);
   }
 
   async function updatePassword(event: FormEvent<HTMLFormElement>) {
@@ -1351,45 +1386,23 @@ export default function SignupSection({
           }`}
         >
           {!session ? (
-            <form onSubmit={handleAuth}>
-              {isCamerinoPage ? (
+            isRecoveringPassword ? (
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void sendPasswordResetEmail();
+                }}
+              >
                 <div className="mb-5 rounded-[22px] border border-cyan-300/20 bg-cyan-300/10 p-4">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
-                    Acceso privado
+                    Recuperar contraseña
                   </p>
                   <p className="mt-2 text-sm font-bold leading-6 text-white/68">
-                    Usa el correo y contraseña de tu cuenta para abrir tu
-                    camerino.
+                    Escribe tu correo y te enviamos un enlace para cambiar la
+                    contraseña.
                   </p>
                 </div>
-              ) : (
-                <div className="mb-5 grid grid-cols-2 rounded-full border border-white/15 bg-black/30 p-1">
-                  <button
-                    className={`rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.12em] transition ${
-                      authMode === "signup"
-                        ? "bg-white text-slate-950"
-                        : "text-white/70"
-                    }`}
-                    type="button"
-                    onClick={() => setAuthMode("signup")}
-                  >
-                    Registro
-                  </button>
-                  <button
-                    className={`rounded-full px-4 py-3 text-sm font-black uppercase tracking-[0.12em] transition ${
-                      authMode === "signin"
-                        ? "bg-white text-slate-950"
-                        : "text-white/70"
-                    }`}
-                    type="button"
-                    onClick={() => setAuthMode("signin")}
-                  >
-                    Entrar
-                  </button>
-                </div>
-              )}
 
-              <div className="grid gap-4 md:grid-cols-2">
                 <input
                   className="input"
                   autoComplete="email"
@@ -1403,65 +1416,150 @@ export default function SignupSection({
                   }}
                   required
                 />
-                <label className="relative block">
+
+                <button className="gold-button mt-5 w-full" disabled={isSaving}>
+                  {isSaving ? "Enviando..." : "Enviar enlace"}
+                </button>
+                <button
+                  className="secondary-button mt-4 w-full px-5 py-3"
+                  type="button"
+                  onClick={() => setIsRecoveringPassword(false)}
+                >
+                  Volver a entrar
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleAuth}>
+                {isCamerinoPage ? (
+                  <div className="mb-5 rounded-[22px] border border-cyan-300/20 bg-cyan-300/10 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
+                      Acceso privado
+                    </p>
+                    <p className="mt-2 text-sm font-bold leading-6 text-white/68">
+                      Usa el correo y contraseña de tu cuenta para abrir tu
+                      camerino.
+                    </p>
+                  </div>
+                ) : showAuthModeChooser ? (
+                  <div className="mb-5 grid grid-cols-2 gap-3">
+                    <button
+                      className={`rounded-full border px-4 py-3 text-sm font-black uppercase tracking-[0.12em] transition ${
+                        selectedAuthMode === "signup"
+                          ? "border-white/25 bg-white text-slate-950 shadow-[0_0_24px_rgba(255,215,0,0.18)]"
+                          : "border-white/15 bg-white/[0.055] text-white/70 hover:border-white/28 hover:text-white"
+                      }`}
+                      type="button"
+                      onClick={() => {
+                        setAuthMode("signup");
+                        setIsRecoveringPassword(false);
+                      }}
+                    >
+                      Registro
+                    </button>
+                    <button
+                      className={`rounded-full border px-4 py-3 text-sm font-black uppercase tracking-[0.12em] transition ${
+                        selectedAuthMode === "signin"
+                          ? "border-white/25 bg-white text-slate-950 shadow-[0_0_24px_rgba(255,215,0,0.18)]"
+                          : "border-white/15 bg-white/[0.055] text-white/70 hover:border-white/28 hover:text-white"
+                      }`}
+                      type="button"
+                      onClick={() => {
+                        setAuthMode("signin");
+                        setIsRecoveringPassword(false);
+                      }}
+                    >
+                      Entrar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mb-5 rounded-[22px] border border-white/15 bg-white/[0.055] p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
+                      {selectedAuthMode === "signup" ? "Registro" : "Entrada"}
+                    </p>
+                    <p className="mt-2 text-sm font-bold leading-6 text-white/68">
+                      {selectedAuthMode === "signup"
+                        ? "Crea tu cuenta para abrir tu camerino y participar."
+                        : "Accede con tu correo y contraseña."}
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid gap-4 md:grid-cols-2">
                   <input
-                    className="input w-full pr-28"
-                    autoComplete={
-                      authMode === "signup" ? "new-password" : "current-password"
-                    }
-                    minLength={8}
-                    name="password"
-                    pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}"
-                    placeholder="Contraseña segura"
-                    title="Usa mínimo 8 caracteres con letras y números."
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    className="input"
+                    autoComplete="email"
+                    name="email"
+                    placeholder="Correo electrónico"
+                    type="email"
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      setShowExistingEmailActions(false);
+                    }}
                     required
                   />
-                  <button
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-cyan-100"
-                    type="button"
-                    onClick={() => setShowPassword((current) => !current)}
-                  >
-                    {showPassword ? "Ocultar" : "Ver"}
-                  </button>
-                </label>
-              </div>
+                  <label className="relative block">
+                    <input
+                      className="input w-full pr-28"
+                      autoComplete={
+                        selectedAuthMode === "signup"
+                          ? "new-password"
+                          : "current-password"
+                      }
+                      minLength={8}
+                      name="password"
+                      pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}"
+                      placeholder="Contraseña segura"
+                      title="Usa mínimo 8 caracteres con letras y números."
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                    />
+                    <button
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-cyan-100"
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                    >
+                      {showPassword ? "Ocultar" : "Ver"}
+                    </button>
+                  </label>
+                </div>
 
-              {authMode === "signup" && !isCamerinoPage ? (
-                isCamerinoPage ? null : (
-                  <ProfileEditor
-                    form={form}
-                    isSaving={isSaving}
-                    onPhotoChange={handlePhotoChange}
-                    photoFile={photoFile}
-                    role={role}
-                    setRole={setRole}
-                    showArtistRegistration={false}
-                    updateForm={updateForm}
-                  />
-                )
-              ) : null}
+                {selectedAuthMode === "signup" && !isCamerinoPage ? (
+                  isCamerinoPage ? null : (
+                    <ProfileEditor
+                      form={form}
+                      isSaving={isSaving}
+                      onPhotoChange={handlePhotoChange}
+                      photoFile={photoFile}
+                      role={role}
+                      setRole={setRole}
+                      showArtistRegistration={false}
+                      updateForm={updateForm}
+                    />
+                  )
+                ) : null}
 
-              <button className="gold-button mt-5 w-full" disabled={isSaving}>
-                {isSaving
-                  ? "Guardando..."
-                  : authMode === "signup" && !isCamerinoPage
-                    ? "Crear mi perfil"
-                    : "Entrar a mi camerino"}
-              </button>
-              {(authMode === "signin" || isCamerinoPage) ? (
-                <button
-                  className="mt-4 w-full rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-black uppercase tracking-[0.12em] text-cyan-100 transition hover:border-cyan-200/45"
-                  disabled={isSaving}
-                  type="button"
-                  onClick={sendPasswordResetEmail}
-                >
-                  Olvidé mi contraseña
+                <button className="gold-button mt-5 w-full" disabled={isSaving}>
+                  {isSaving
+                    ? "Guardando..."
+                    : selectedAuthMode === "signup" && !isCamerinoPage
+                      ? "Crear mi perfil"
+                      : "Entrar a mi camerino"}
                 </button>
-              ) : null}
-            </form>
+                {selectedAuthMode === "signin" ? (
+                  <button
+                    className="secondary-button mt-4 w-full px-5 py-3"
+                    disabled={isSaving}
+                    type="button"
+                    onClick={() => setIsRecoveringPassword(true)}
+                  >
+                    Olvidé mi contraseña
+                  </button>
+                ) : null}
+              </form>
+            )
           ) : (
             <div className="grid gap-8">
               {isResettingPassword ? (
@@ -1538,9 +1636,44 @@ export default function SignupSection({
                 setSampleType={setSampleType}
                 setSampleUrl={setSampleUrl}
                 followersCount={myProfile?.follower_count ?? 0}
-                friendsCount={friends.length}
+                friendsCount={directory.filter((profile) => profile.is_following).length}
                 updateForm={updateCamerinoForm}
               />
+
+              <section className="rounded-[24px] border border-white/[0.14] bg-black/24 p-4 md:p-5">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">
+                      Compras dentro de la app
+                    </p>
+                    <h2 className="mt-1 text-2xl font-black uppercase">
+                      Niveles de camerino
+                    </h2>
+                  </div>
+                  <span className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white/62">
+                    Próximamente
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                  {camerinoPlans.map((plan) => (
+                    <article
+                      key={plan.title}
+                      className="rounded-[18px] border border-white/12 bg-white/[0.045] p-4"
+                    >
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-yellow-300">
+                        {plan.badge}
+                      </p>
+                      <h3 className="mt-2 text-lg font-black uppercase">
+                        {plan.title}
+                      </h3>
+                      <p className="mt-2 text-sm font-bold leading-6 text-white/62">
+                        {plan.detail}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
 
               {isEditingProfile && !isCamerinoPage ? (
                 <form

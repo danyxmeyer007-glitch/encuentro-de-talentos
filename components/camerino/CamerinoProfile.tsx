@@ -157,10 +157,10 @@ export default function CamerinoProfile({
     .toUpperCase();
 
   return (
-    <section className="rounded-[36px] border border-white/10 bg-[#050505] p-3 text-white shadow-[0_40px_120px_rgba(0,0,0,.75)]">
-      <article className="overflow-hidden rounded-[30px] border border-yellow-300/15 bg-black">
+    <section className="rounded-[28px] border border-white/10 bg-[#050505] p-2 text-white shadow-[0_40px_120px_rgba(0,0,0,.75)] md:p-3">
+      <article className="overflow-hidden rounded-[24px] border border-yellow-300/15 bg-black">
         <div
-          className="relative m-3 overflow-hidden rounded-[26px] border border-white/10 p-5 md:p-8"
+          className="relative m-2 overflow-hidden rounded-[22px] border border-white/10 p-4 md:m-3 md:p-8"
           style={{ background: theme.bg }}
         >
           <div className="pointer-events-none absolute inset-0 bg-[url('/et-portada.png')] bg-cover bg-center opacity-10" />
@@ -190,7 +190,7 @@ export default function CamerinoProfile({
             ) : null}
           </div>
 
-          <div className="relative mt-8 grid gap-8 lg:grid-cols-[250px_1fr]">
+          <div className="relative mt-7 grid gap-7 lg:grid-cols-[250px_1fr]">
             <aside className="grid justify-items-center gap-4">
               <div
                 className="rounded-[34px] p-2.5"
@@ -233,14 +233,14 @@ export default function CamerinoProfile({
 
               <div className="grid w-full grid-cols-3 gap-2">
                 <Stat label="Fans" value={followersCount} />
-                <Stat label="Amigos" value={friendsCount} />
-                <Stat label="Shows" value={samples.length} />
+                <Stat label="Siguiendo" value={friendsCount} />
+                <Stat label="Demos" value={samples.length} />
               </div>
 
               <button
                 type="button"
                 onClick={onMessageClick}
-                className="w-full rounded-full border border-cyan-200/25 bg-cyan-300/10 px-5 py-3 text-sm font-black uppercase tracking-[.14em] text-cyan-100 transition hover:bg-cyan-300/20"
+                className="gold-button w-full text-sm"
               >
                 Mensaje
               </button>
@@ -279,7 +279,7 @@ export default function CamerinoProfile({
         {isEditing ? (
           <form
             onSubmit={onSave}
-            className="m-3 grid gap-4 rounded-[26px] border border-white/10 bg-white/[.045] p-5 md:grid-cols-2"
+            className="m-2 grid gap-4 rounded-[22px] border border-white/10 bg-white/[.045] p-4 md:m-3 md:grid-cols-2 md:p-5"
           >
             <Field title="Diseño">
               <select
@@ -385,7 +385,7 @@ export default function CamerinoProfile({
       </article>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_360px]">
-        <section className="rounded-[30px] border border-white/10 bg-black p-5">
+        <section className="rounded-[24px] border border-white/10 bg-black p-4 md:p-5">
           <h2
             className="text-sm font-black uppercase tracking-[.26em]"
             style={{ color: theme.accent }}
@@ -449,7 +449,7 @@ export default function CamerinoProfile({
           </div>
         </section>
 
-        <aside className="rounded-[30px] border border-white/10 bg-black p-5">
+        <aside className="rounded-[24px] border border-white/10 bg-black p-4 md:p-5">
           <h2
             className="text-sm font-black uppercase tracking-[.26em]"
             style={{ color: theme.accent }}

@@ -12,6 +12,11 @@ type ContestRegistrationRequest = {
 
 const singingContestSlug = "voz-piloto-2026";
 const maxVoiceParticipants = 10;
+const contestSlugs = new Set([
+  singingContestSlug,
+  "beats-piloto-2026",
+  "instrumentistas-piloto-2026",
+]);
 
 function normalizeUsername(value: string) {
   return value
@@ -154,7 +159,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  if ((body.contestSlug ?? singingContestSlug) !== singingContestSlug) {
+  const contestSlug = body.contestSlug ?? singingContestSlug;
+
+  if (!contestSlugs.has(contestSlug)) {
     return NextResponse.json({ error: "Concurso no disponible" }, { status: 400 });
   }
 
@@ -170,6 +177,7 @@ export async function POST(request: Request) {
   const participantIds = await getParticipantIds();
 
   if (
+    contestSlug === singingContestSlug &&
     participantIds.length >= maxVoiceParticipants &&
     !participantIds.includes(user.id)
   ) {
@@ -190,7 +198,7 @@ export async function POST(request: Request) {
 
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase.from("contest_registrations").insert({
-    contest_slug: singingContestSlug,
+    contest_slug: contestSlug,
     user_id: user.id,
   });
 
@@ -206,5 +214,58 @@ export async function POST(request: Request) {
   return NextResponse.json({
     participantIds: updatedParticipantIds,
     registered: true,
+  });
+}
+
+export async function DELETE(request: Request) {
+  if (!hasSupabaseServerConfig()) {
+    return NextResponse.json(
+      { error: "Supabase server environment is not configured" },
+      { status: 500 },
+    );
+  }
+
+  let body: ContestRegistrationRequest;
+
+  try {
+    body = (await request.json()) as ContestRegistrationRequest;
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const contestSlug = body.contestSlug ?? singingContestSlug;
+
+  if (!contestSlugs.has(contestSlug)) {
+    return NextResponse.json({ error: "Concurso no disponible" }, { status: 400 });
+  }
+
+  const user = await getAuthenticatedUser(request);
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Inicia sesión para cambiar tu inscripción" },
+      { status: 401 },
+    );
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("contest_registrations")
+    .delete()
+    .eq("contest_slug", contestSlug)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return NextResponse.json(
+      { error: "No se pudo cancelar tu inscripción" },
+      { status: 500 },
+    );
+  }
+
+  const updatedParticipantIds = await getParticipantIds();
+
+  return NextResponse.json({
+    participantIds: updatedParticipantIds,
+    registered: false,
   });
 }

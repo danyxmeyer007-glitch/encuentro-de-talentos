@@ -41,10 +41,10 @@ type StandaloneNavigator = Navigator & {
 const contestSlug = "voz-piloto-2026";
 const maxVoiceParticipants = 10;
 const sections = [
-  { href: "#trending-talents", label: "Talentos destacados" },
-  { href: "#new-participants", label: "Nuevos participantes" },
-  { href: "#featured-mentors", label: "Mentores" },
-  { href: "#upcoming-auditions", label: "App oficial" },
+  { href: "#trending-talents", label: "Talentos" },
+  { href: "#new-participants", label: "Audición" },
+  { href: "#escenario-preview", label: "Concurso" },
+  { href: "#upcoming-auditions", label: "App live" },
 ];
 const submitOptions = ["Canto", "Danza", "Actuación", "Instrumento", "Talento libre"];
 
@@ -196,19 +196,19 @@ export default function Home() {
     <main className="talent-app">
       <section className="featured-banner" aria-labelledby="home-title">
         <div className="banner-copy">
-          <p className="eyebrow">Competencia activa</p>
+          <p className="eyebrow">Tu talento. Tu momento. Tu historia.</p>
           <h1 id="home-title">Encuentro de Talentos</h1>
           <p className="banner-text">
-            Una experiencia de talento para artistas reales: crea tu camerino,
-            sube tu audición, participa en concursos oficiales y gana tu lugar en el
-            Salón de la Fama.
+            Diviértete, participa y compite por el primer lugar de $100 USD.
+            Crea tu camerino, sube tu audición y descubre la experiencia live
+            dentro de la app.
           </p>
           <div className="banner-actions">
             <Link href="/concursos" className="primary-action">
-              Entrar a concursos
+              Participar por $100
             </Link>
-            <Link href={isApp ? "/escenario" : "/legal"} className="secondary-action">
-              {isApp ? "Abrir escenario" : "Ver legal"}
+            <Link href="#upcoming-auditions" className="secondary-action">
+              Ver app live
             </Link>
           </div>
         </div>
@@ -223,15 +223,11 @@ export default function Home() {
               playsInline
               className="phone-video"
             />
-            <div className="phone-overlay">
-              <span>Fila oficial</span>
-              <strong>{registrations.length}/{maxVoiceParticipants} voces</strong>
-            </div>
           </div>
           <div className="prize-card">
             <span>Premio</span>
-            <strong>$25,000</strong>
-            <small>MXN + showcase con mentores</small>
+            <strong>$100</strong>
+            <small>USD para primer lugar</small>
           </div>
         </div>
       </section>
@@ -341,15 +337,15 @@ export default function Home() {
                 <p className="eyebrow">Voz Piloto 2026</p>
                 <h3>Concursos, jurado, premio y reglas</h3>
                 <p>
-                  El sitio público muestra descubrimiento, registro, legal y comunidad.
-                  La entrada al escenario en vivo aparece dentro de la app instalada,
-                  donde tiene sentido pedir cámara y micrófono.
+                  La primera temporada empieza con una meta sencilla: descubrir una
+                  voz real, llevarla al escenario live y premiar al primer lugar
+                  con $100 USD.
                 </p>
                 <div className="rule-grid">
                   <span>Fila: {registrations.length}/{maxVoiceParticipants}</span>
-                  <span>Jurado: pronto</span>
-                  <span>Mentores: aplicaciones abiertas</span>
-                  <span>Votos: esperando datos en vivo</span>
+                  <span>Voces: {registrations.length}/{maxVoiceParticipants}</span>
+                  <span>Camerino: obligatorio</span>
+                  <span>Live: dentro del APK</span>
                 </div>
               </div>
             </div>
@@ -411,17 +407,12 @@ export default function Home() {
 
       <section id="upcoming-auditions" className="apk-band">
         <div>
-          <p className="eyebrow">App + sitio web</p>
-          <h2>Instala el escenario en tu teléfono</h2>
-          <p>
-            El sitio mantiene pública la información legal y de comunidad. El APK
-            abre la experiencia de talento con acceso protegido antes de Camerino y
-            Escenario.
-          </p>
-          <p className="home-data-status">{status}</p>
+          <p className="eyebrow">APK Android</p>
+          <h2>Download para la experiencia en live</h2>
+          <span className="sr-only">{status}</span>
         </div>
         <a href="/downloads/encuentro-de-talentos.apk" download>
-          Descargar APK
+          Download APK
         </a>
       </section>
     </main>
